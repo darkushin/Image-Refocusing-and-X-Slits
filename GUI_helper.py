@@ -332,3 +332,18 @@ class Application(tk.Frame):
         # print(self.posn_tracker.end)
 
 
+class Error(Exception):
+    """Base class for exceptions in this module."""
+    pass
+
+
+class UserError(Error):
+    """Exception raised for invalid use of the GUI by the user.
+
+    Attributes:
+        message -- explanation of the error
+    """
+
+    def __init__(self, message):
+        self.message = message
+

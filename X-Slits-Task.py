@@ -13,15 +13,28 @@ class GUI(tk.Frame):
         self.frames = []
         self.num_frames = 0
         self.homographies = None
-        self.start_frame = None
-        self.end_frame = None
-        self.start_column = None
-        self.end_column = None
+        self.start_frame = 0
+        self.end_frame = 0
+        self.initial_start_frame = 0
+        self.initial_end_frame = 0
+        self.start_column = 0
+        self.end_column = 1
+        self.rotate_angle = 0
+        self.im_shape = None
+        self.start_frame_entry = None
+        self.end_frame_entry = None
+        self.start_column_entry = None
+        self.end_column_entry = None
+        self.move_columns_entry = None
+        self.move_frames_entry = None
+        self.rotate_slit_entry = None
         self.select_folder_button()
         self.motion_button()
         self.select_slice()
         self.move_slice()
-        self.add_button(text='Show', place=[200, 320], command=self.create_slit)
+        self.current_slit_label = None
+        self.rotate_angle_label = None
+        self.add_button(text='Show', place=[200, 360], command=self.create_slit)
 
     def select_folder_button(self):
         self.add_label(text='Select images folder:', place=[15, 10])
@@ -40,48 +53,51 @@ class GUI(tk.Frame):
         """
         self.add_label(text='Please define the desired slice start and end points:', place=[15, 130])
         self.add_label(text='Frames:      Start       End\tColumns:      Start       End', place=[15, 150])
-        self.start_frame = self.add_entry(place=[90, 170], width=3)
-        self.end_frame = self.add_entry(place=[147, 170], width=3)
-        self.start_column = self.add_entry(place=[315, 170], width=3)
-        self.end_column = self.add_entry(place=[372, 170], width=3)
+        self.start_frame_entry = self.add_entry(place=[90, 170], width=3)
+        self.end_frame_entry = self.add_entry(place=[147, 170], width=3)
+        self.start_column_entry = self.add_entry(place=[315, 170], width=3)
+        self.end_column_entry = self.add_entry(place=[372, 170], width=3)
 
     def move_slice(self):
         """
         Allows the user to move the selected slice, left-right, forward-backward and zoom in-zoom out.
         """
         self.add_label(text='Insert different values to create different space-time volume slices:', place=[15, 230])
-        self.add_label(text='Left-Right (#pixels)', place=[15, 250])
-        self.add_entry(place=[60, 270], width=4)
-        self.add_label(text='Backward-Forward (#frames)', place=[150, 250])
-        self.add_entry(place=[220, 270], width=4)
+        self.add_label(text='Backward-Forward (#frames)', place=[15, 250])
+        self.move_frames_entry = self.add_entry(place=[85, 270], width=4)
+        self.add_label(text='Left-Right (#pixels)', place=[215, 250])
+        self.move_columns_entry = self.add_entry(place=[260, 270], width=4)
         self.add_label(text='Zoom in/out (degree)', place=[350, 250])
-        self.add_entry(place=[400, 270], width=4)
+        self.rotate_slit_entry = self.add_entry(place=[400, 270], width=4)
 
     def load_dir(self):
         """
         Loads the dir the user selected and displays the number of frames in it and the size of an image
         """
         try:
-            self.load_label.destroy()
-        except AttributeError:
-            pass
-        # self.reset_fields()
-        # todo: add try and accept for cases where there are other things in the folder than images
-        self.directory = filedialog.askdirectory(initialdir="/", title="select dir") + '/'
-        self.file_name = self.directory.split('/')[-2]
-        print(self.directory)
+            try:
+                self.load_label.destroy()
+            except AttributeError:
+                pass
+            # self.reset_fields()
+            self.directory = filedialog.askdirectory(initialdir="/", title="select dir") + '/'
+            self.file_name = self.directory.split('/')[-2]
+            print(self.directory)
 
-        # load frames:
-        self.frames = load_images(self.directory)
-        if self.frames:
-            self.num_frames = len(self.frames)
-            self.load_label = self.add_label(text=f'Folder Name: {self.file_name}\n'
-                                                  f'Number of Frames: {len(self.frames)}\n'
-                                                  f'Frame size: {self.frames[0].shape[0]}x{self.frames[0].shape[1]}',
-                                             place=[200, 10])
-        else:
-            print("error")
-            # todo: display to the user an error message that the folder is empty
+            # load frames:
+            self.frames = load_images(self.directory)
+            if self.frames:
+                self.num_frames = len(self.frames)
+                self.im_shape = self.frames[0].shape
+                self.load_label = self.add_label(text=f'Folder Name: {self.file_name}\n'
+                                                      f'Number of Frames: {len(self.frames)}\n'
+                                                      f'Frame size: {self.im_shape[0]}x{self.im_shape[1]}',
+                                                 place=[200, 10])
+        except AttributeError as e:
+            display_error(root, 'Error while loading the folder. Make sure you selected the correct folder and that it '
+                          'contains images')
+        except Exception as e:
+            display_error(root, 'Error occurred while loading folder. Error: ' + e.args[0])
 
     def compute_motion(self):
         """
@@ -97,28 +113,179 @@ class GUI(tk.Frame):
                 .reshape((3, 3, self.num_frames - 1))
 
         except UserError as e:  # catch the error if the user didn't load a folder
-            self.display_error(e.message)
+            display_error(root, e.message)
 
-        except IOError as e:  # if no motion file for the loaded folder was previously created, catch the IOError,
-            # calcualte and save the motion
+        except IOError:  # if no motion file for the loaded folder was previously created, catch the IOError,
+            # calculate and save the motion
             self.homographies = np.zeros((3, 3, self.num_frames - 1))
             for i in range(self.num_frames - 1):
                 self.homographies[:, :, i] = Homography(self.frames[i], self.frames[i + 1], translation_only=True)
             csv_data = self.homographies.reshape((9, self.num_frames - 1))
             np.savetxt('Motion/' + self.file_name + '.csv', csv_data, delimiter=',')
+        except Exception as e:
+            display_error(root, 'Error occurred while computing motion. Error: ' + e.args[0])
 
     def create_slit(self):
         """
         Calculates the panorama slit according to the values specified by the user and displays the image to the user.
         :return:
         """
-        window = Toplevel(root)
-        img = ImageTk.PhotoImage(Image.open('/Users/darkushin/Desktop/Studies/Computational-Photography/Ex2/Results/train-in-snow/panorama_frames0-245_cols100-327.jpg'))
-        canvas = tk.Canvas(window, width=img.width(), height=img.height(),
-                                borderwidth=0, highlightthickness=0)
-        canvas.pack(expand=True)
-        canvas.create_image(0, 0, image=img, anchor=tk.NW)
-        canvas.img = img  # Keep reference.
+        try:
+            if self.homographies is None:
+                raise UserError('Please compute the motion between frames first!')
+            try:
+                self.current_slit_label.destroy()
+            except AttributeError:
+                pass
+            panorama_im = self.create_panorama()
+            window = Toplevel(root)
+            window.title('Panorama Image')
+            img = ImageTk.PhotoImage(Image.fromarray(BGR2RGB(panorama_im)))
+            canvas = tk.Canvas(window, width=img.width(), height=img.height(),
+                               borderwidth=0, highlightthickness=0)
+            canvas.pack(expand=True)
+            canvas.create_image(0, 0, image=img, anchor=tk.NW)
+            canvas.img = img
+            label_text = f'Current slit - frames: {self.start_frame}-{self.end_frame}, columns: {self.start_column}-' \
+                         f'{self.end_column}'
+            self.current_slit_label = self.add_label(text=label_text, place=[100, 330])
+        except UserError as e:
+            display_error(root, e.message)
+        except Exception as e:
+            display_error(root, 'Error occurred while creating panorama. Error: ' + e.args[0])
+
+    def create_panorama(self):
+        self.update_slit_boundaries()
+        if not self.check_boundaries():
+            raise UserError(f'Please define valid starting and ending frames and columns!\n'
+                            f'Frames range 0-{self.num_frames-1}, Columns range 0-{self.im_shape[1]}')
+        if self.start_column <= self.end_column:
+            return self.create_panorama_small_start()
+            # else:
+            #     return self.create_panorama_big_start()
+
+    def create_panorama_small_start(self):
+        if self.start_frame == self.end_frame:
+            return self.frames[self.start_frame][:, self.start_column:self.end_column, :]
+        col_range = self.end_column - self.start_column
+        total_motion = int(np.sum(np.round(self.homographies[0, 2, self.start_frame:self.end_frame])))
+        first_motion = int(round(self.homographies[0, 2, self.start_frame]))
+        num_frames = self.end_frame - self.start_frame + 1
+        start_pos = self.calculate_added_motion(self.start_column + first_motion, self.end_column, num_frames)
+        panorama_width = total_motion + col_range
+        panorama_im = np.zeros((self.im_shape[0], panorama_width, self.im_shape[2])).astype(np.uint8)
+        panorama_col = 0
+
+        if self.start_column == self.end_column:
+            for i in range(num_frames - 1):
+                motion = int(round(self.homographies[0, 2, self.start_frame + i]))
+                if self.start_column + motion < self.im_shape[1]:
+                    panorama_im[:, panorama_col: panorama_col + motion, :] = \
+                        self.frames[self.start_frame + i][:, self.start_column: self.start_column + motion, :]
+                else:
+                    panorama_im[:, panorama_col: panorama_col + motion, :] = \
+                        self.frames[self.start_frame + i][:, self.im_shape[1] - motion:, :]
+                panorama_col += motion
+            return panorama_im
+
+        if self.end_column - self.start_column < first_motion and self.end_column != self.start_column:
+            panorama_im[:, : self.end_column - self.start_column, :] = self.frames[self.start_frame][:, self.start_column: self.end_column, :]
+            self.start_column = self.end_column
+            panorama_im[:, self.end_column - self.start_column:, :] = self.create_panorama_small_start()
+            return panorama_im
+
+        panorama_im[:, : start_pos[1] - start_pos[0] + first_motion, :] = \
+            self.frames[self.start_frame][:, start_pos[0] - first_motion: start_pos[1], :]
+        panorama_col += start_pos[1] - start_pos[0] + first_motion
+
+        for i in range(1, num_frames):
+            motion = int(round(self.homographies[0, 2, self.start_frame + i - 1]))
+            panorama_im[:, panorama_col: panorama_col + start_pos[i + 1] - start_pos[i] + motion, :] = \
+                self.frames[self.start_frame + i][:, start_pos[i] - motion: start_pos[i + 1], :]
+            panorama_col += start_pos[i + 1] - start_pos[i] + motion
+        return panorama_im
+
+    def calculate_added_motion(self, start_col, end_col, num_frames):
+        added_motion = np.zeros(num_frames + 1).astype(int)
+        added_motion[0] = start_col
+        added_motion[1:-1] += (end_col - start_col) // num_frames
+        remainder = np.arange((end_col - start_col) % num_frames) + 1
+        added_motion[remainder] += 1
+        added_motion = np.cumsum(added_motion)
+        added_motion[-1] = end_col
+        return added_motion
+
+    def check_boundaries(self):
+        """
+        Checks the validity of the starting and ending points for the slice defined by the user
+        :return: True if the defined slice is valid, false otherwise.
+        """
+        if self.start_frame not in range(self.num_frames) or self.end_frame not in range(self.num_frames) or \
+                self.start_frame > self.end_frame:
+            return False
+        if self.start_column not in range(self.im_shape[1] + 1) or self.end_column not in \
+                range(self.im_shape[1] + 1):
+            return False
+        return True
+
+    def update_slit_boundaries(self):
+        """
+        Updates the starting and ending frames and columns according to the values defined by the user
+        """
+        try:
+            self.rotate_angle_label.destroy()
+        except AttributeError:
+            pass
+        if self.start_column_entry.get():
+            self.start_column = int(self.start_column_entry.get())
+            self.start_column_entry.delete(0, 'end')
+        if self.end_column_entry.get():
+            self.end_column = int(self.end_column_entry.get())
+            self.end_column_entry.delete(0, 'end')
+        if self.start_frame_entry.get():
+            self.start_frame = int(self.start_frame_entry.get())
+            self.initial_start_frame = int(self.start_frame_entry.get())
+            self.start_frame_entry.delete(0, 'end')
+        if self.end_frame_entry.get():
+            self.end_frame = int(self.end_frame_entry.get())
+            self.initial_end_frame = int(self.end_frame_entry.get())
+            self.end_frame_entry.delete(0, 'end')
+
+        if self.move_frames_entry.get():
+            self.start_frame += int(self.move_frames_entry.get())
+            self.end_frame += int(self.move_frames_entry.get())
+            self.move_frames_entry.delete(0, 'end')
+        if self.move_columns_entry.get():
+            self.start_column += int(self.move_columns_entry.get())
+            self.end_column += int(self.move_columns_entry.get())
+            self.move_columns_entry.delete(0, 'end')
+        if self.rotate_slit_entry.get():
+            self.rotate_angle = int(self.rotate_slit_entry.get())
+            self.update_rotation_angle()
+            self.rotate_slit_entry.delete(0, 'end')
+
+    def update_rotation_angle(self):
+        """
+        Updates the boundaries of the slit according to the rotation angle defined by the user
+        """
+        self.rotate_angle_label = self.add_label(text=f'angle: {self.rotate_angle}', place=[390, 300])
+        if 0 <= self.rotate_angle <= 45:
+            change = (self.rotate_angle * self.im_shape[1]) // 90
+            self.start_column = (self.im_shape[1] // 2) - change
+            self.end_column = (self.im_shape[1] // 2) + change
+            self.start_frame = self.initial_start_frame
+            self.end_frame = self.initial_end_frame
+        elif 45 < self.rotate_angle <= 90:
+            num_frames = self.initial_end_frame - self.initial_start_frame
+            change = (num_frames * (self.rotate_angle - 45)) // 90
+            self.start_frame = self.initial_start_frame + change
+            self.end_frame = self.initial_end_frame - change
+        elif -45 <= self.rotate_angle < 0:
+            raise UserError("should be implemented!")
+        elif -90 <= self.rotate_angle < -45:
+            raise UserError("should be implemented!")
+        else:
+            raise UserError("Please define a valid rotation angle between -90 and 90")
 
     def add_label(self, text: str, place: list):
         """
@@ -146,24 +313,9 @@ class GUI(tk.Frame):
         entry.place(x=place[0], y=place[1])
         return entry
 
-    def display_error(self, err_msg):
-        """
-        Creates a new window with an error message for the user.
-        :param err_msg: The message that should be displayed to the user
-        """
-        BACKGROUND = 'grey'
-        TITLE = 'Error'
-        err_window = Toplevel(root)
-        err_window.title(TITLE)
-        err_window.configure(background=BACKGROUND)
-        err_label = tk.Label(err_window, text=err_msg)
-        err_label.pack()
-        err_button = tk.Button(err_window, text='Got it!', command=err_window.destroy)
-        err_button.pack()
-
 
 if __name__ == '__main__':
-    WIDTH, HEIGHT = 500, 350
+    WIDTH, HEIGHT = 500, 400
     BACKGROUND = 'grey'
     TITLE = 'X-Slit GUI'
 

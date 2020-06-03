@@ -304,10 +304,6 @@ class Application(tk.Frame):
 
     def __init__(self, root, parent, path, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
-        # all_files = sorted(os.listdir(root.directory))
-        # path = root.directory + '/' + all_files[len(all_files)//2]
-        # path = root.directory + '/Lego133.jpg'
-        # print(path)
         img = ImageTk.PhotoImage(Image.open(path))
         self.canvas = tk.Canvas(parent, width=img.width(), height=img.height(),
                                 borderwidth=0, highlightthickness=0)
@@ -322,14 +318,10 @@ class Application(tk.Frame):
         # Callback function to update it given two points of its diagonal.
         def on_drag(start, end, **kwarg):  # Must accept these arguments.
             self.selection_obj.update(start, end)
-            # print(self.posn_tracker.start)
-            # print(self.posn_tracker.end)
 
         # Create mouse position tracker that uses the function.
         self.posn_tracker = MousePositionTracker(self.canvas)
         self.posn_tracker.autodraw(command=on_drag)  # Enable callbacks.
-        # print(self.posn_tracker.start)
-        # print(self.posn_tracker.end)
 
 
 class Error(Exception):
@@ -346,4 +338,22 @@ class UserError(Error):
 
     def __init__(self, message):
         self.message = message
+
+
+def display_error(root, err_msg):
+    """
+    Creates a new window with an error message for the user.
+    :param root: The root tkinter object upon which a new error window should be displayed
+    :param err_msg: The message that should be displayed to the user
+    """
+    BACKGROUND = 'grey'
+    TITLE = 'Error'
+    err_window = Toplevel(root)
+    err_window.title(TITLE)
+    err_window.configure(background=BACKGROUND)
+    err_label = tk.Label(err_window, text=err_msg)
+    err_label.pack()
+    err_button = tk.Button(err_window, text='Got it!', command=err_window.destroy)
+    err_button.pack()
+
 

@@ -1,4 +1,4 @@
-from GUI_helper import *
+from Code.GUI_helper import *
 
 
 # This file contains useful functions for using the program and visualizing the results, such as breaking a new input

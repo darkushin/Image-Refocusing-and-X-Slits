@@ -1,6 +1,6 @@
 from tkinter import filedialog
 from os import listdir
-from GUI_helper import *
+from Code.GUI_helper import *
 
 dirname = os.path.dirname(__file__)
 

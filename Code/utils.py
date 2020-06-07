@@ -210,7 +210,7 @@ def produce_panorama_sequence(dir, start_frame, end_frame, start_column, end_col
     function will create a single panorama image from the defined end points.
     """
     sequence = dir.split('/')[-1]
-    os.system(f'mkdir Results/{sequence}')
+    os.system(f'mkdir ../Results/{sequence}')
 
     # load the frames:
     frames = load_images(dir)
@@ -290,8 +290,8 @@ def create_left_right_panoramas(dir):
                    BGR2RGB(panorama_im))
 
 
-# create_left_right_panoramas('../Data/Nutella')
-produce_panorama_sequence('../Data/Nutella', 0, 307, 639, 0)
+create_left_right_panoramas('../Data/train-in-snow')
+# produce_panorama_sequence('../Data/Nutella', 0, 307, 0, 639, 'frames')
 # frames2video('../Data/train-in-snow-reversed')
 # reverse_video('../Data/train-in-snow')
 # video2frames('Nutella')

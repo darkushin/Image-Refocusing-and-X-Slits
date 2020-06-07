@@ -2,6 +2,8 @@ from tkinter import filedialog
 from os import listdir
 from GUI_helper import *
 
+dirname = os.path.dirname(__file__)
+
 
 class GUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -108,7 +110,7 @@ class GUI(tk.Frame):
             if not self.directory:
                 raise UserError('Please load a folder first!')
 
-            self.homographies = np.genfromtxt('Motion/' + self.file_name + '.csv', delimiter=',') \
+            self.homographies = np.genfromtxt('../Motion/' + self.file_name + '.csv', delimiter=',') \
                 .reshape((3, 3, self.num_frames - 1))
             self.validate_motion_direction()
 
@@ -122,7 +124,8 @@ class GUI(tk.Frame):
             for i in range(self.num_frames - 1):
                 self.homographies[:, :, i] = Homography(self.frames[i], self.frames[i + 1], translation_only=True)
             csv_data = self.homographies.reshape((9, self.num_frames - 1))
-            np.savetxt('Motion/' + self.file_name + '.csv', csv_data, delimiter=',')
+            np.savetxt('../Motion/' + self.file_name + '.csv', csv_data, delimiter=',')
+
         except Exception as e:
             display_error(root, 'Error occurred while computing motion. Error: ' + e.args[0])
 

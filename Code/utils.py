@@ -12,8 +12,8 @@ def video2frames(file_name):
     :param file_name: The name of the video that should be produced.
     """
     # Create a VideoCapture object and read from input file
-    cap = cv2.VideoCapture('Videos/' + file_name + '.mp4')
-    os.system('mkdir Data/' + file_name)
+    cap = cv2.VideoCapture('../Videos/' + file_name + '.mp4')
+    os.system('mkdir ../Data/' + file_name)
 
     # Check if camera opened successfully
     if (cap.isOpened() == False):
@@ -27,7 +27,7 @@ def video2frames(file_name):
         if ret:
             # Display the resulting frame
             cv2.imshow('Frame', frame)
-            cv2.imwrite('Data/' + file_name + '/' + file_name + str(i) + '.jpg', frame)
+            cv2.imwrite('../Data/' + file_name + '/' + file_name + str(i) + '.jpg', frame)
 
             # Press Q on keyboard to  exit
             if cv2.waitKey(10) & 0xFF == ord('q'):
@@ -47,7 +47,7 @@ def frames2video(dir):
     """
     frames = load_images(dir)
     im_shape = frames[-1].shape
-    out = cv2.VideoWriter('Results/train-in-snow-reversed.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30,
+    out = cv2.VideoWriter('../Results/train-in-snow-reversed.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30,
                           (im_shape[1], im_shape[0]))
 
     for frame in frames:
@@ -60,13 +60,14 @@ def reverse_video(dir):
     """
     Reverses the order of the frames in the sequence.
     """
+    sequence = dir.split('/')[-1]
     images_path = sorted_alphanumeric(os.listdir(dir))
     i = len(images_path)
     for im_path in images_path:
         if im_path == '.DS_Store':
             continue
         im = BGR2RGB(cv2.imread(dir + '/' + im_path))
-        plt.imsave(f'Data/train-in-snow-reversed/reversed-{i}.jpg', im)
+        plt.imsave(f'../Data/{sequence}/reversed-{i}.jpg', im)
         i -= 1
 
 
@@ -218,11 +219,11 @@ def produce_panorama_sequence(dir, start_frame, end_frame, start_column, end_col
 
     # compute all homographies:
     try:
-        homographies = np.genfromtxt('Motion/' + file_name + '.csv', delimiter=',').reshape((3, 3, num_frames - 1))
+        homographies = np.genfromtxt('../Motion/' + file_name + '.csv', delimiter=',').reshape((3, 3, num_frames - 1))
     except IOError:
         homographies = compute_homographies(frames, translation_only=True)
         csv_data = homographies.reshape((9, num_frames - 1))
-        np.savetxt('Motion/' + sequence + '.csv', csv_data, delimiter=',')
+        np.savetxt('../Motion/' + sequence + '.csv', csv_data, delimiter=',')
 
     frames = validate_motion_direction(frames)
 
@@ -231,19 +232,19 @@ def produce_panorama_sequence(dir, start_frame, end_frame, start_column, end_col
         max_col = max(start_column, end_column)
         for j in range(min_col, max_col // 2):
             panorama_im = create_panorama(start_frame, end_frame, j, end_column - j, frames, homographies)
-            plt.imsave(f'Results/{sequence}/panorama_frames{start_frame}-{end_frame}_cols{j}-{end_column - j}.jpg',
+            plt.imsave(f'../Results/{sequence}/panorama_frames{start_frame}-{end_frame}_cols{j}-{end_column - j}.jpg',
                        BGR2RGB(panorama_im))
 
     elif fix_param == 'cols':
         num_frames = end_frame - start_frame + 1
         for j in range(num_frames // 2):
             panorama_im = create_panorama(start_frame + j, end_frame - j, start_column, end_column, frames, homographies)
-            plt.imsave(f'Results/{sequence}/panorama_frames{start_frame+j}-{end_frame-j}_cols{start_column}-{end_column}.jpg',
+            plt.imsave(f'../Results/{sequence}/panorama_frames{start_frame+j}-{end_frame-j}_cols{start_column}-{end_column}.jpg',
                        BGR2RGB(panorama_im))
 
     else:
         panorama_im = create_panorama(start_frame, end_frame, start_column, end_column, frames, homographies)
-        plt.imsave(f'Results/{sequence}/panorama_frames{start_frame}-{end_frame}_cols{start_column}-{end_column}.jpg',
+        plt.imsave(f'../Results/{sequence}/panorama_frames{start_frame}-{end_frame}_cols{start_column}-{end_column}.jpg',
                    BGR2RGB(panorama_im))
 
 
@@ -266,7 +267,7 @@ def create_left_right_panoramas(dir):
     Creates all possible panoramas with the same starting and ending columns. This creates a left to right view.
     """
     sequence = dir.split('/')[-1]
-    os.system(f'mkdir Results/{sequence}')
+    os.system(f'mkdir ../Results/{sequence}')
 
     # load the frames:
     frames = load_images(dir)
@@ -275,22 +276,22 @@ def create_left_right_panoramas(dir):
 
     # compute all homographies:
     try:
-        homographies = np.genfromtxt('Motion/' + file_name + '.csv', delimiter=',').reshape((3, 3, num_frames - 1))
+        homographies = np.genfromtxt('../Motion/' + file_name + '.csv', delimiter=',').reshape((3, 3, num_frames - 1))
     except IOError:
         homographies = compute_homographies(frames, translation_only=True)
         csv_data = homographies.reshape((9, num_frames - 1))
-        np.savetxt('Motion/' + sequence + '.csv', csv_data, delimiter=',')
+        np.savetxt('../Motion/' + sequence + '.csv', csv_data, delimiter=',')
 
     frames = validate_motion_direction(frames)
     im_shape = frames[0].shape
     for i in range(im_shape[1]):
         panorama_im = create_panorama(0, num_frames-1, i, i, frames, homographies)
-        plt.imsave(f'Results/{sequence}/panorama_frames{0}-{num_frames-1}_cols{i}-{i}.jpg',
+        plt.imsave(f'../Results/{sequence}/panorama_frames{0}-{num_frames-1}_cols{i}-{i}.jpg',
                    BGR2RGB(panorama_im))
 
 
-# create_left_right_panoramas('Data/Nutella')
-produce_panorama_sequence('Data/Nutella', 0, 307, 639, 0)
-# frames2video('Data/train-in-snow-reversed')
-# reverse_video('Data/train-in-snow')
+# create_left_right_panoramas('../Data/Nutella')
+produce_panorama_sequence('../Data/Nutella', 0, 307, 639, 0)
+# frames2video('../Data/train-in-snow-reversed')
+# reverse_video('../Data/train-in-snow')
 # video2frames('Nutella')

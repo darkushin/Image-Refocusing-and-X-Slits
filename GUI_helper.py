@@ -147,7 +147,6 @@ def estimate_rigid_transform(points1, points2, translation_only=False):
         centered_points1 = points1 - centroid1
         centered_points2 = points2 - centroid2
         sigma = centered_points2.T @ centered_points1
-        # sigma = np.matmul(centered_points2.T, centered_points1)
         U, _, Vt = np.linalg.svd(sigma)
         rotation = U @ Vt
         translation = -rotation @ centroid1 + centroid2
@@ -158,6 +157,12 @@ def estimate_rigid_transform(points1, points2, translation_only=False):
 
 
 def accumulate_homographies(H_succesive, m):
+    """
+    computes the accumulative homographies of all given homographies according to a given reference frame
+    :param H_succesive: all the homographies between every two successive frames in the sequence
+    :param m: the reference frame according to which the accumulative homographies should be calculated
+    :return: the accumulative homography of every homography according to the reference frame
+    """
     if H_succesive is None:
         raise Exception("Please press 'Compute Motion' first!")
     M = H_succesive.shape[2] + 1
@@ -173,14 +178,41 @@ def accumulate_homographies(H_succesive, m):
 
 
 def BGR2RGB(image):
+    """
+    convert the given image in BGR color space to RGB color space
+    """
     return image[:, :, ::-1]
 
 
 def sorted_alphanumeric(data):
+    """
+    sorts a given array in a alphanumeric order
+    :param data: the array that should be sorted
+    :return: the given array in a sorted order
+    """
     import re
     convert = lambda text: int(text) if text.isdigit() else text.lower()
     alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
     return sorted(data, key=alphanum_key)
+
+
+def calculate_added_motion(start_col, end_col, num_frames):
+    """
+    Calculates how much pixels should be taken from every slit in a given panorama configuration. This function is
+    used in the case where the starting column is smaller than the ending column.
+    :param start_col: the first column in the first frame that should be taken for the panorama
+    :param end_col: the last column that should be used for the panorama
+    :param num_frames: the number of frames that should be used for the panorama
+    :return: a evenly spaced partition of the columns range that should be spanned
+    """
+    added_motion = np.zeros(num_frames + 1).astype(int)
+    added_motion[0] = start_col
+    added_motion[1:-1] += (end_col - start_col) // num_frames
+    remainder = np.arange((end_col - start_col) % num_frames) + 1
+    added_motion[remainder] += 1
+    added_motion = np.cumsum(added_motion)
+    added_motion[-1] = end_col
+    return added_motion
 
 
 class MousePositionTracker(tk.Frame):

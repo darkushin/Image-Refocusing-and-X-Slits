@@ -129,6 +129,52 @@ def create_panorama_small_start(start_frame, end_frame, start_column, end_column
     return panorama_im
 
 
+def create_panorama_big_start(start_frame, end_frame, start_column, end_column, frames, homographies):
+    """
+    Creates a new panorama image in the case where the starting column is bigger than the ending column
+    :param start_frame: the first frame to use for the panorama
+    :param end_frame: the last frame to use for the panorama
+    :param start_column: the first column to use in the panorama
+    :param end_column: the last column to use in the panorama
+    :param frames: the loaded frames that should be used for creating the panorama
+    :param homographies: the homographies between every consecutive frames in the sequence
+    :return: the new panorama image
+    """
+    im_shape = frames[0].shape
+    if start_frame == end_frame:
+        return frames[start_frame][:, end_column: start_column + 1, :]
+    total_motion = int(np.sum(np.round(homographies[0, 2, start_frame:end_frame])))
+    num_frames = end_frame - start_frame + 1
+    num_cols = start_column - end_column + 1
+    first_motion = int(round(homographies[0, 2, start_frame]))
+    cur_start = start_column - first_motion
+    panorama_width = total_motion
+    if panorama_width <= 0:
+        raise Exception('illegal panorama')
+    panorama_im = np.zeros((im_shape[0], panorama_width, im_shape[2])).astype(np.uint8)
+    panorama_col = 0
+    for i in range(end_frame - start_frame - 1):
+        added_motion = (num_cols - first_motion) // (num_frames - 2)
+        next_motion = int(round(homographies[0, 2, start_frame + i + 1]))
+        if i < ((num_cols - first_motion) % (num_frames - 2)):
+            added_motion += 1
+        cur_end = cur_start + next_motion - added_motion
+        if cur_end < cur_start:
+            cur_start, cur_end = cur_end, cur_start
+        slit_width = cur_end - cur_start
+        if cur_end > start_column:
+            cur_end = start_column
+            cur_start = cur_end - slit_width
+        if cur_start < end_column:
+            cur_start = end_column
+            cur_end = cur_start + slit_width
+        panorama_im[:, panorama_col: panorama_col + slit_width, :] = frames[start_frame + i][:, cur_start:cur_end, :]
+        panorama_col += slit_width
+        cur_start -= added_motion
+    panorama_im = np.delete(panorama_im, np.where((panorama_im == 0).all(0)), axis=1)
+    return panorama_im
+
+
 def create_panorama(start_frame, end_frame, start_column, end_column, frames, homographies):
     """
     Creates a new panorama image defined by the given end points
@@ -143,8 +189,8 @@ def create_panorama(start_frame, end_frame, start_column, end_column, frames, ho
     if start_column <= end_column:
         panorama_im = create_panorama_small_start(start_frame, end_frame, start_column, end_column, frames,
                                                   homographies)
-    # else:
-    #     panorama_im = create_panorama_big_start(start_frame, end_frame, start_col, end_col, frames, homographies)
+    else:
+        panorama_im = create_panorama_big_start(start_frame, end_frame, start_column, end_column, frames, homographies)
     return panorama_im
 
 
@@ -244,7 +290,7 @@ def create_left_right_panoramas(dir):
 
 
 # create_left_right_panoramas('Data/Nutella')
-# produce_panorama_sequence('Data/train-in-snow', 0, 245, 0, 426, 'frames')
+produce_panorama_sequence('Data/Nutella', 0, 307, 639, 0)
 # frames2video('Data/train-in-snow-reversed')
 # reverse_video('Data/train-in-snow')
 # video2frames('Nutella')

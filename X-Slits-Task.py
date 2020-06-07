@@ -3,8 +3,6 @@ from os import listdir
 from GUI_helper import *
 
 
-# todo: 1. Handle the case where the motion is from right to left
-
 class GUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
@@ -37,6 +35,9 @@ class GUI(tk.Frame):
         self.add_button(text='Show', place=[200, 360], command=self.create_slit)
 
     def select_folder_button(self):
+        """
+        Creates the folder selection label and button in the GUI.
+        """
         self.add_label(text='Select images folder:', place=[15, 10])
         self.add_button(text="Select Folder", fg="black", command=self.load_dir, place=[15, 30])
 
@@ -79,7 +80,6 @@ class GUI(tk.Frame):
                 self.load_label.destroy()
             except AttributeError:
                 pass
-            # self.reset_fields()
             self.directory = filedialog.askdirectory(initialdir="/", title="select dir") + '/'
             self.file_name = self.directory.split('/')[-2]
             print(self.directory)
@@ -104,7 +104,6 @@ class GUI(tk.Frame):
         Calculates the motion between every two consecutive frames in the sequence and saves it in a file
         '/Motion/<sequence_name>.csv'. If the file already exists, it loads this file instead of recomputing the motion.
         """
-
         try:
             if not self.directory:
                 raise UserError('Please load a folder first!')
@@ -141,8 +140,7 @@ class GUI(tk.Frame):
 
     def create_slit(self):
         """
-        Calculates the panorama slit according to the values specified by the user and displays the image to the user.
-        :return:
+        Calculates the panorama slit according to the values specified by the user and saves the image to the user.
         """
         try:
             if self.homographies is None:
@@ -164,11 +162,15 @@ class GUI(tk.Frame):
                          f'{self.end_column}'
             self.current_slit_label = self.add_label(text=label_text, place=[100, 330])
         except UserError as e:
-            display_error(root, e.message)
+            display_error(root, e.message, e.orig_err_msg)
         except Exception as e:
             display_error(root, 'Error occurred while creating panorama. Error: ' + e.args[0])
 
     def create_panorama(self):
+        """
+        Checks if the start column is bigger than the end column and creates a new panorama image accordingly.
+        :return: the new panorama image
+        """
         self.update_slit_boundaries()
         if not self.check_boundaries():
             raise UserError(f'Please define valid starting and ending frames and columns!\n'
@@ -178,11 +180,15 @@ class GUI(tk.Frame):
                 return self.create_panorama_small_start()
             else:
                 return self.create_panorama_big_start()
-        except Exception:
+        except Exception as e:
             raise UserError(f'Could not create panorama image using the defined slice. Please select different end '
-                            f'points.')
+                            f'points.', e.args[0])
 
     def create_panorama_small_start(self):
+        """
+        Creates a new panorama image in the case where the starting column is smaller than the ending column
+        :return: the new panorama image
+        """
         if self.start_frame == self.end_frame:
             return self.frames[self.start_frame][:, self.start_column:self.end_column, :]
         col_range = self.end_column - self.start_column
@@ -225,6 +231,10 @@ class GUI(tk.Frame):
         return panorama_im
 
     def create_panorama_big_start(self):
+        """
+        Creates a new panorama image in the case where the starting column is bigger than the ending column
+        :return: the new panorama image
+        """
         if self.start_frame == self.end_frame:
             return self.frames[self.start_frame][:, self.end_column: self.start_column + 1, :]
         total_motion = int(np.sum(np.round(self.homographies[0, 2, self.start_frame:self.end_frame])))
@@ -232,7 +242,7 @@ class GUI(tk.Frame):
         num_cols = self.start_column - self.end_column + 1
         first_motion = int(round(self.homographies[0, 2, self.start_frame]))
         cur_start = self.start_column - first_motion
-        panorama_width = total_motion - num_cols + 50
+        panorama_width = total_motion
         if panorama_width <= 0:
             raise Exception('illegal panorama')
         panorama_im = np.zeros((self.im_shape[0], panorama_width, self.im_shape[2])).astype(np.uint8)
@@ -257,24 +267,6 @@ class GUI(tk.Frame):
             cur_start -= added_motion
         panorama_im = np.delete(panorama_im, np.where((panorama_im == 0).all(0)), axis=1)
         return panorama_im
-
-    # def calculate_added_motion(self, start_col, end_col, num_frames):
-    #     """
-    #     Calculates how much pixels should be taken from every slit in a given panorama configuration. This function is
-    #     used in the case where the starting column is smaller than the ending column.
-    #     :param start_col: the first column in the first frame that should be taken for the panorama
-    #     :param end_col: the last column that should be used for the panorama
-    #     :param num_frames: the number of frames that should be used for the panorama
-    #     :return: a evenly spaced partition of the columns range that should be spanned
-    #     """
-    #     added_motion = np.zeros(num_frames + 1).astype(int)
-    #     added_motion[0] = start_col
-    #     added_motion[1:-1] += (end_col - start_col) // num_frames
-    #     remainder = np.arange((end_col - start_col) % num_frames) + 1
-    #     added_motion[remainder] += 1
-    #     added_motion = np.cumsum(added_motion)
-    #     added_motion[-1] = end_col
-    #     return added_motion
 
     def check_boundaries(self):
         """
@@ -337,6 +329,8 @@ class GUI(tk.Frame):
             self.start_frame = self.initial_start_frame
             self.end_frame = self.initial_end_frame
         elif 45 < self.rotate_angle <= 90:
+            self.start_column = 0
+            self.end_column = self.im_shape[1] - 1
             num_frames = self.initial_end_frame - self.initial_start_frame
             change = (num_frames * (self.rotate_angle - 45)) // 90
             self.start_frame = self.initial_start_frame + change

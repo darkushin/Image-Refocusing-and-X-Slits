@@ -94,9 +94,9 @@ def ransac_homography(points1, points2, num_iter, inlier_tol, translation_only=F
     N = points1.shape[0]
     largest_inlier_set = []
     for iter in range(num_iter):
-        if translation_only: # if True only 1 point should be sampled
+        if translation_only:  # if True only 1 point should be sampled
             J = np.random.choice(np.arange(N), 1)
-        else: # transformation is rigid, so 2 distinct points are required
+        else:  # transformation is rigid, so 2 distinct points are required
             J = np.random.choice(np.arange(N), 2, replace=False)
         p1_J = points1[J]
         p2_J = points2[J]
@@ -171,9 +171,9 @@ def accumulate_homographies(H_succesive, m):
     for i in reversed(range(m)):
         H2m[:, :, i] = np.dot(H2m[:, :, i + 1], H_succesive[:, :, i])
         H2m[:, :, i] /= H2m[2, 2, i]
-    for i in range(m, M-1):
-        H2m[:, :, i+1] = np.dot(H2m[:, :, i], np.linalg.inv(H_succesive[:, :, i]))
-        H2m[:, :, i+1] /= H2m[2, 2, i+1]
+    for i in range(m, M - 1):
+        H2m[:, :, i + 1] = np.dot(H2m[:, :, i], np.linalg.inv(H_succesive[:, :, i]))
+        H2m[:, :, i + 1] /= H2m[2, 2, i + 1]
     return H2m
 
 
@@ -192,7 +192,7 @@ def sorted_alphanumeric(data):
     """
     import re
     convert = lambda text: int(text) if text.isdigit() else text.lower()
-    alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
+    alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
     return sorted(data, key=alphanum_key)
 
 
@@ -227,7 +227,7 @@ class MousePositionTracker(tk.Frame):
         # Create canvas cross-hair lines.
         xhair_opts = dict(dash=(3, 2), fill='white', state=tk.HIDDEN)
         self.lines = (self.canvas.create_line(0, 0, 0, self.canv_height, **xhair_opts),
-                      self.canvas.create_line(0, 0, self.canv_width,  0, **xhair_opts))
+                      self.canvas.create_line(0, 0, self.canv_width, 0, **xhair_opts))
 
     def cur_selection(self):
         return (self.start, self.end)
@@ -275,6 +275,7 @@ class SelectionObject:
     """ Widget to display a rectangular area on given canvas defined by two points
         representing its diagonal.
     """
+
     def __init__(self, canvas, select_opts):
         # Create a selection objects for updating.
         self.canvas = canvas
@@ -289,30 +290,30 @@ class SelectionObject:
         select_opts2 = dict(dash=(2, 2), fill='', outline='white', state=tk.HIDDEN)
 
         # Initial extrema of inner and outer rectangles.
-        imin_x, imin_y,  imax_x, imax_y = 0, 0,  1, 1
-        omin_x, omin_y,  omax_x, omax_y = 0, 0,  self.width, self.height
+        imin_x, imin_y, imax_x, imax_y = 0, 0, 1, 1
+        omin_x, omin_y, omax_x, omax_y = 0, 0, self.width, self.height
 
         self.rects = (
             # Area outside selection (inner) rectangle.
-            self.canvas.create_rectangle(omin_x, omin_y,  omax_x, imin_y, **select_opts1),
-            self.canvas.create_rectangle(omin_x, imin_y,  imin_x, imax_y, **select_opts1),
-            self.canvas.create_rectangle(imax_x, imin_y,  omax_x, imax_y, **select_opts1),
-            self.canvas.create_rectangle(omin_x, imax_y,  omax_x, omax_y, **select_opts1),
+            self.canvas.create_rectangle(omin_x, omin_y, omax_x, imin_y, **select_opts1),
+            self.canvas.create_rectangle(omin_x, imin_y, imin_x, imax_y, **select_opts1),
+            self.canvas.create_rectangle(imax_x, imin_y, omax_x, imax_y, **select_opts1),
+            self.canvas.create_rectangle(omin_x, imax_y, omax_x, omax_y, **select_opts1),
             # Inner rectangle.
-            self.canvas.create_rectangle(imin_x, imin_y,  imax_x, imax_y, **select_opts2)
+            self.canvas.create_rectangle(imin_x, imin_y, imax_x, imax_y, **select_opts2)
         )
 
     def update(self, start, end):
         # Current extrema of inner and outer rectangles.
-        imin_x, imin_y,  imax_x, imax_y = self._get_coords(start, end)
-        omin_x, omin_y,  omax_x, omax_y = 0, 0,  self.width, self.height
+        imin_x, imin_y, imax_x, imax_y = self._get_coords(start, end)
+        omin_x, omin_y, omax_x, omax_y = 0, 0, self.width, self.height
 
         # Update coords of all rectangles based on these extrema.
-        self.canvas.coords(self.rects[0], omin_x, omin_y,  omax_x, imin_y),
-        self.canvas.coords(self.rects[1], omin_x, imin_y,  imin_x, imax_y),
-        self.canvas.coords(self.rects[2], imax_x, imin_y,  omax_x, imax_y),
-        self.canvas.coords(self.rects[3], omin_x, imax_y,  omax_x, omax_y),
-        self.canvas.coords(self.rects[4], imin_x, imin_y,  imax_x, imax_y),
+        self.canvas.coords(self.rects[0], omin_x, omin_y, omax_x, imin_y),
+        self.canvas.coords(self.rects[1], omin_x, imin_y, imin_x, imax_y),
+        self.canvas.coords(self.rects[2], imax_x, imin_y, omax_x, imax_y),
+        self.canvas.coords(self.rects[3], omin_x, imax_y, omax_x, omax_y),
+        self.canvas.coords(self.rects[4], imin_x, imin_y, imax_x, imax_y),
 
         for rect in self.rects:  # Make sure all are now visible.
             self.canvas.itemconfigure(rect, state=tk.NORMAL)
@@ -330,7 +331,6 @@ class SelectionObject:
 
 
 class Application(tk.Frame):
-
     # Default selection object options.
     SELECT_OPTS = dict(dash=(5, 5), stipple='gray25', outline='')  # fill="white"
 
@@ -368,15 +368,18 @@ class UserError(Error):
         message -- explanation of the error
     """
 
-    def __init__(self, message):
-        self.message = message
+    def __init__(self, err_message, orig_err_msg=None):
+        self.message = err_message
+        self.orig_err_msg = orig_err_msg
 
 
-def display_error(root, err_msg):
+
+def display_error(root, err_msg, original_err_msg=None):
     """
     Creates a new window with an error message for the user.
     :param root: The root tkinter object upon which a new error window should be displayed
     :param err_msg: The message that should be displayed to the user
+    :param original_err_msg: The original error message
     """
     BACKGROUND = 'grey'
     TITLE = 'Error'
@@ -385,7 +388,7 @@ def display_error(root, err_msg):
     err_window.configure(background=BACKGROUND)
     err_label = tk.Label(err_window, text=err_msg)
     err_label.pack()
+    if original_err_msg:
+        print(original_err_msg)
     err_button = tk.Button(err_window, text='Got it!', command=err_window.destroy)
     err_button.pack()
-
-

@@ -94,9 +94,9 @@ def ransac_homography(points1, points2, num_iter, inlier_tol, translation_only=F
     N = points1.shape[0]
     largest_inlier_set = []
     for iter in range(num_iter):
-        if translation_only: # if True only 1 point should be sampled
+        if translation_only:  # if True only 1 point should be sampled
             J = np.random.choice(np.arange(N), 1)
-        else: # transformation is rigid, so 2 distinct points are required
+        else:  # transformation is rigid, so 2 distinct points are required
             J = np.random.choice(np.arange(N), 2, replace=False)
         p1_J = points1[J]
         p2_J = points2[J]
@@ -147,7 +147,6 @@ def estimate_rigid_transform(points1, points2, translation_only=False):
         centered_points1 = points1 - centroid1
         centered_points2 = points2 - centroid2
         sigma = centered_points2.T @ centered_points1
-        # sigma = np.matmul(centered_points2.T, centered_points1)
         U, _, Vt = np.linalg.svd(sigma)
         rotation = U @ Vt
         translation = -rotation @ centroid1 + centroid2
@@ -158,6 +157,12 @@ def estimate_rigid_transform(points1, points2, translation_only=False):
 
 
 def accumulate_homographies(H_succesive, m):
+    """
+    computes the accumulative homographies of all given homographies according to a given reference frame
+    :param H_succesive: all the homographies between every two successive frames in the sequence
+    :param m: the reference frame according to which the accumulative homographies should be calculated
+    :return: the accumulative homography of every homography according to the reference frame
+    """
     if H_succesive is None:
         raise Exception("Please press 'Compute Motion' first!")
     M = H_succesive.shape[2] + 1
@@ -166,21 +171,48 @@ def accumulate_homographies(H_succesive, m):
     for i in reversed(range(m)):
         H2m[:, :, i] = np.dot(H2m[:, :, i + 1], H_succesive[:, :, i])
         H2m[:, :, i] /= H2m[2, 2, i]
-    for i in range(m, M-1):
-        H2m[:, :, i+1] = np.dot(H2m[:, :, i], np.linalg.inv(H_succesive[:, :, i]))
-        H2m[:, :, i+1] /= H2m[2, 2, i+1]
+    for i in range(m, M - 1):
+        H2m[:, :, i + 1] = np.dot(H2m[:, :, i], np.linalg.inv(H_succesive[:, :, i]))
+        H2m[:, :, i + 1] /= H2m[2, 2, i + 1]
     return H2m
 
 
 def BGR2RGB(image):
+    """
+    convert the given image in BGR color space to RGB color space
+    """
     return image[:, :, ::-1]
 
 
 def sorted_alphanumeric(data):
+    """
+    sorts a given array in a alphanumeric order
+    :param data: the array that should be sorted
+    :return: the given array in a sorted order
+    """
     import re
     convert = lambda text: int(text) if text.isdigit() else text.lower()
-    alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
+    alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
     return sorted(data, key=alphanum_key)
+
+
+def calculate_added_motion(start_col, end_col, num_frames):
+    """
+    Calculates how much pixels should be taken from every slit in a given panorama configuration. This function is
+    used in the case where the starting column is smaller than the ending column.
+    :param start_col: the first column in the first frame that should be taken for the panorama
+    :param end_col: the last column that should be used for the panorama
+    :param num_frames: the number of frames that should be used for the panorama
+    :return: a evenly spaced partition of the columns range that should be spanned
+    """
+    added_motion = np.zeros(num_frames + 1).astype(int)
+    added_motion[0] = start_col
+    added_motion[1:-1] += (end_col - start_col) // num_frames
+    remainder = np.arange((end_col - start_col) % num_frames) + 1
+    added_motion[remainder] += 1
+    added_motion = np.cumsum(added_motion)
+    added_motion[-1] = end_col
+    return added_motion
 
 
 class MousePositionTracker(tk.Frame):
@@ -195,7 +227,7 @@ class MousePositionTracker(tk.Frame):
         # Create canvas cross-hair lines.
         xhair_opts = dict(dash=(3, 2), fill='white', state=tk.HIDDEN)
         self.lines = (self.canvas.create_line(0, 0, 0, self.canv_height, **xhair_opts),
-                      self.canvas.create_line(0, 0, self.canv_width,  0, **xhair_opts))
+                      self.canvas.create_line(0, 0, self.canv_width, 0, **xhair_opts))
 
     def cur_selection(self):
         return (self.start, self.end)
@@ -243,6 +275,7 @@ class SelectionObject:
     """ Widget to display a rectangular area on given canvas defined by two points
         representing its diagonal.
     """
+
     def __init__(self, canvas, select_opts):
         # Create a selection objects for updating.
         self.canvas = canvas
@@ -257,30 +290,30 @@ class SelectionObject:
         select_opts2 = dict(dash=(2, 2), fill='', outline='white', state=tk.HIDDEN)
 
         # Initial extrema of inner and outer rectangles.
-        imin_x, imin_y,  imax_x, imax_y = 0, 0,  1, 1
-        omin_x, omin_y,  omax_x, omax_y = 0, 0,  self.width, self.height
+        imin_x, imin_y, imax_x, imax_y = 0, 0, 1, 1
+        omin_x, omin_y, omax_x, omax_y = 0, 0, self.width, self.height
 
         self.rects = (
             # Area outside selection (inner) rectangle.
-            self.canvas.create_rectangle(omin_x, omin_y,  omax_x, imin_y, **select_opts1),
-            self.canvas.create_rectangle(omin_x, imin_y,  imin_x, imax_y, **select_opts1),
-            self.canvas.create_rectangle(imax_x, imin_y,  omax_x, imax_y, **select_opts1),
-            self.canvas.create_rectangle(omin_x, imax_y,  omax_x, omax_y, **select_opts1),
+            self.canvas.create_rectangle(omin_x, omin_y, omax_x, imin_y, **select_opts1),
+            self.canvas.create_rectangle(omin_x, imin_y, imin_x, imax_y, **select_opts1),
+            self.canvas.create_rectangle(imax_x, imin_y, omax_x, imax_y, **select_opts1),
+            self.canvas.create_rectangle(omin_x, imax_y, omax_x, omax_y, **select_opts1),
             # Inner rectangle.
-            self.canvas.create_rectangle(imin_x, imin_y,  imax_x, imax_y, **select_opts2)
+            self.canvas.create_rectangle(imin_x, imin_y, imax_x, imax_y, **select_opts2)
         )
 
     def update(self, start, end):
         # Current extrema of inner and outer rectangles.
-        imin_x, imin_y,  imax_x, imax_y = self._get_coords(start, end)
-        omin_x, omin_y,  omax_x, omax_y = 0, 0,  self.width, self.height
+        imin_x, imin_y, imax_x, imax_y = self._get_coords(start, end)
+        omin_x, omin_y, omax_x, omax_y = 0, 0, self.width, self.height
 
         # Update coords of all rectangles based on these extrema.
-        self.canvas.coords(self.rects[0], omin_x, omin_y,  omax_x, imin_y),
-        self.canvas.coords(self.rects[1], omin_x, imin_y,  imin_x, imax_y),
-        self.canvas.coords(self.rects[2], imax_x, imin_y,  omax_x, imax_y),
-        self.canvas.coords(self.rects[3], omin_x, imax_y,  omax_x, omax_y),
-        self.canvas.coords(self.rects[4], imin_x, imin_y,  imax_x, imax_y),
+        self.canvas.coords(self.rects[0], omin_x, omin_y, omax_x, imin_y),
+        self.canvas.coords(self.rects[1], omin_x, imin_y, imin_x, imax_y),
+        self.canvas.coords(self.rects[2], imax_x, imin_y, omax_x, imax_y),
+        self.canvas.coords(self.rects[3], omin_x, imax_y, omax_x, omax_y),
+        self.canvas.coords(self.rects[4], imin_x, imin_y, imax_x, imax_y),
 
         for rect in self.rects:  # Make sure all are now visible.
             self.canvas.itemconfigure(rect, state=tk.NORMAL)
@@ -298,16 +331,11 @@ class SelectionObject:
 
 
 class Application(tk.Frame):
-
     # Default selection object options.
     SELECT_OPTS = dict(dash=(5, 5), stipple='gray25', outline='')  # fill="white"
 
     def __init__(self, root, parent, path, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
-        # all_files = sorted(os.listdir(root.directory))
-        # path = root.directory + '/' + all_files[len(all_files)//2]
-        # path = root.directory + '/Lego133.jpg'
-        # print(path)
         img = ImageTk.PhotoImage(Image.open(path))
         self.canvas = tk.Canvas(parent, width=img.width(), height=img.height(),
                                 borderwidth=0, highlightthickness=0)
@@ -322,13 +350,45 @@ class Application(tk.Frame):
         # Callback function to update it given two points of its diagonal.
         def on_drag(start, end, **kwarg):  # Must accept these arguments.
             self.selection_obj.update(start, end)
-            # print(self.posn_tracker.start)
-            # print(self.posn_tracker.end)
 
         # Create mouse position tracker that uses the function.
         self.posn_tracker = MousePositionTracker(self.canvas)
         self.posn_tracker.autodraw(command=on_drag)  # Enable callbacks.
-        # print(self.posn_tracker.start)
-        # print(self.posn_tracker.end)
 
 
+class Error(Exception):
+    """Base class for exceptions in this module."""
+    pass
+
+
+class UserError(Error):
+    """Exception raised for invalid use of the GUI by the user.
+
+    Attributes:
+        message -- explanation of the error
+    """
+
+    def __init__(self, err_message, orig_err_msg=None):
+        self.message = err_message
+        self.orig_err_msg = orig_err_msg
+
+
+
+def display_error(root, err_msg, original_err_msg=None):
+    """
+    Creates a new window with an error message for the user.
+    :param root: The root tkinter object upon which a new error window should be displayed
+    :param err_msg: The message that should be displayed to the user
+    :param original_err_msg: The original error message
+    """
+    BACKGROUND = 'grey'
+    TITLE = 'Error'
+    err_window = Toplevel(root)
+    err_window.title(TITLE)
+    err_window.configure(background=BACKGROUND)
+    err_label = tk.Label(err_window, text=err_msg)
+    err_label.pack()
+    if original_err_msg:
+        print(original_err_msg)
+    err_button = tk.Button(err_window, text='Got it!', command=err_window.destroy)
+    err_button.pack()

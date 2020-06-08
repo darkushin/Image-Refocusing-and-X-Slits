@@ -5,7 +5,7 @@ from PIL import Image, ImageTk
 import matplotlib.pyplot as plt
 from os import listdir
 import numpy as np
-from GUI_helper import *
+from Code.GUI_helper import *
 
 
 # TODO's:
@@ -297,8 +297,7 @@ if __name__ == '__main__':
     root = tk.Tk()
     root.title(TITLE)
     root.geometry('%sx%s' % (WIDTH, HEIGHT))
-    # root.configure(background=BACKGROUND)
 
-    gui = GUI(root)  # , background=BACKGROUND)
+    gui = GUI(root)
     gui.pack(side=tk.TOP, fill=tk.BOTH, expand=tk.TRUE)
     gui.mainloop()

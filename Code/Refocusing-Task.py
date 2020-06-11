@@ -1,3 +1,4 @@
+import copy
 from tkinter import filedialog
 from tkinter import *
 import tkinter as tk
@@ -10,12 +11,9 @@ from Code.GUI_helper import *
 
 # TODO's:
 #  1. Allow the user to select specific frame range (important in the case of apples)
-#  2. Change the displayed image to tkinter and not cv2.imshow()
 #  3. Display to the user different error messages
 #  4. Check that right to left motion works!
-
-# delete .DS_Store files:
-# open terminal and go to the desired sequence and type: find . -name '.DS_Store' -type f -delete
+#  5. Create all the repos that are necessary for the program when running for the first time (Motion/Results etc.)
 
 
 class GUI(tk.Frame):
@@ -24,12 +22,18 @@ class GUI(tk.Frame):
         self.directory = ''
         self.file_name = ''
         self.num_frames = 0
+        self.im_shape = None
         self.ref_frame = 0
         self.frames = []
         self.homographies = None
-        self.accum_h = None
         self.images_path = []
+        self.warped_im = None
+        self.refocused_im = None
+        self.dx = 0
+        self.dy = 0
         self.selection_area = [0, 0, 0, 0]
+        self.current_im_label = None
+        self.canvas = None
         self.select_folder_button()
         self.motion_button()
         self.translation_only_checkbutton()
@@ -39,17 +43,32 @@ class GUI(tk.Frame):
         self.show_button()
 
     def reset_fields(self):
+        """
+        Resets all the fields to the initial values. This function is called when the user loads a new folder
+        """
         self.directory = ''
         self.file_name = ''
         self.num_frames = 0
         self.ref_frame = 0
+        self.im_shape = None
         self.frames = []
         self.homographies = None
-        self.accum_h = None
         self.images_path = []
+        self.warped_im = None
+        self.refocused_im = None
         self.selection_area = [0, 0, 0, 0]
+        self.dx = 0
+        self.dy = 0
+        self.translation_only_checkbutton()
+        try:
+            self.current_im_label.destroy()
+        except AttributeError:
+            pass
 
     def select_folder_button(self):
+        """
+        Displays to the user the select folder button which allows the user to select the sequence he want from the data
+        """
         self.add_label(text='Select images folder:', place=[15, 10])
         self.add_button(text="Select Folder", fg="black", command=self.load_dir, place=[15, 30])
 
@@ -61,6 +80,10 @@ class GUI(tk.Frame):
         self.add_button(text='Compute Motion', place=[15, 90], command=self.compute_motion)
 
     def translation_only_checkbutton(self):
+        """
+        Displays to the user the translation only checkbutton which allows the user to indicate that the motion in the
+        current sequence is a pure translation without rotation.
+        """
         self.trans_only_var = IntVar()
         trans_only_button = Checkbutton(self, text="Translation-Only", variable=self.trans_only_var, onvalue=1,
                                         offvalue=0, height=1, width=14)
@@ -81,39 +104,44 @@ class GUI(tk.Frame):
         self.add_label(text='Use the buttons below to change the focus:', place=[15, 130])
 
         self.add_label(text='Left-Right', place=[15, 150])
-        self.add_button(text='-', place=[15, 170], command=lambda a='x', b=-1: self.update_focus_command(a, b))
-        self.add_button(text='+', place=[48, 170], command=lambda a='x': self.update_focus_command(a))
+        self.add_button(text='-', place=[15, 170], command=lambda a='x', b=-0.5: self.update_focus_command(a, b))
+        self.add_button(text='+', place=[48, 170], command=lambda a='x', b=0.5: self.update_focus_command(a, b))
         self.x_entry = self.add_entry(place=[25, 195], width=4)
 
         self.add_label(text='Up-Down', place=[120, 150])
-        self.add_button(text='-', place=[118, 170], command=lambda a='y', b=-1: self.update_focus_command(a, b))
-        self.add_button(text='+', place=[151, 170], command=lambda a='y': self.update_focus_command(a))
+        self.add_button(text='-', place=[118, 170], command=lambda a='y', b=-0.5: self.update_focus_command(a, b))
+        self.add_button(text='+', place=[151, 170], command=lambda a='y', b=0.5: self.update_focus_command(a, b))
         self.y_entry = self.add_entry(place=[128, 195], width=4)
 
-        self.add_label(text='Rotate', place=[225, 150])
-        self.add_button(text='-', place=[212, 170])
-        self.add_button(text='+', place=[245, 170])
-        self.alpha_entry = self.add_entry(place=[222, 195], width=4)
+        # self.add_label(text='Rotate', place=[225, 150])
+        # self.add_button(text='-', place=[212, 170])
+        # self.add_button(text='+', place=[245, 170])
+        # self.alpha_entry = self.add_entry(place=[222, 195], width=4)
 
     def update_focus_command(self, parameter: str, amount: float = 1):
-        if self.accum_h is None:
-            self.accum_h = accumulate_homographies(self.homographies, self.ref_frame)
-        if parameter == 'x':  # update dx in the homography
-            self.accum_h[0, 2, :self.ref_frame] += amount
-            self.accum_h[0, 2, self.ref_frame + 1:] -= amount
-        elif parameter == 'y':  # update dy in the homography
-            self.accum_h[1, 2, :self.ref_frame] += amount
-            self.accum_h[1, 2, self.ref_frame + 1:] -= amount
-        else:  # update the rotation matrix in the homography
-            alpha_rad = amount * np.pi / 180
-            self.accum_h[0, 0, :self.ref_frame] += np.cos(alpha_rad)
-            self.accum_h[1, 1, :self.ref_frame] += np.cos(alpha_rad)
-            self.accum_h[0, 1, :self.ref_frame] += -np.sin(alpha_rad)
-            self.accum_h[1, 0, :self.ref_frame] += np.sin(alpha_rad)
-            self.accum_h[0, 0, self.ref_frame + 1:] -= np.cos(alpha_rad)
-            self.accum_h[1, 1, self.ref_frame + 1:] -= np.cos(alpha_rad)
-            self.accum_h[0, 1, self.ref_frame + 1:] -= -np.sin(alpha_rad)
-            self.accum_h[1, 0, self.ref_frame + 1:] -= np.sin(alpha_rad)
+        if parameter == 'x':
+            self.dx += amount
+        if parameter == 'y':
+            self.dy += amount
+
+        # if self.accum_h is None:
+        #     self.accum_h = accumulate_homographies(self.homographies, self.ref_frame)
+        # if parameter == 'x':  # update dx in the homography
+        #     self.accum_h[0, 2, :self.ref_frame] += amount
+        #     self.accum_h[0, 2, self.ref_frame + 1:] -= amount
+        # elif parameter == 'y':  # update dy in the homography
+        #     self.accum_h[1, 2, :self.ref_frame] += amount
+        #     self.accum_h[1, 2, self.ref_frame + 1:] -= amount
+        # else:  # update the rotation matrix in the homography
+        #     alpha_rad = amount * np.pi / 180
+        #     self.accum_h[0, 0, :self.ref_frame] += np.cos(alpha_rad)
+        #     self.accum_h[1, 1, :self.ref_frame] += np.cos(alpha_rad)
+        #     self.accum_h[0, 1, :self.ref_frame] += -np.sin(alpha_rad)
+        #     self.accum_h[1, 0, :self.ref_frame] += np.sin(alpha_rad)
+        #     self.accum_h[0, 0, self.ref_frame + 1:] -= np.cos(alpha_rad)
+        #     self.accum_h[1, 1, self.ref_frame + 1:] -= np.cos(alpha_rad)
+        #     self.accum_h[0, 1, self.ref_frame + 1:] -= -np.sin(alpha_rad)
+        #     self.accum_h[1, 0, self.ref_frame + 1:] -= np.sin(alpha_rad)
 
     def median_mean_radiobutton(self):
         self.med_mean_var = IntVar()
@@ -128,67 +156,116 @@ class GUI(tk.Frame):
         self.add_button(text='Show', place=[200, 320], command=self.display_result)
 
     def display_result(self):
-        if self.accum_h is None:
-            self.accum_h = accumulate_homographies(self.homographies, self.ref_frame)
+        try:
+            if self.homographies is None:
+                raise UserError('Please compute the motion between frames first!')
+
+            try:
+                self.current_im_label.destroy()
+            except AttributeError:
+                pass
+
+            if self.warped_im is None:
+                self.align_images()
+
+            # todo: update all the move options
+            self.update_focus_parameters()
+
+            self.refocus_im()
+            refocused_im = np.mean(self.refocused_im, axis=3).astype(np.uint8)
+
+            # todo: use this if I want to allow the user to use the median
+            # if self.med_mean_var.get() == 2:
+            #     print("using mean")
+            #     refocused_im = np.mean(warped_im, axis=3)
+            # else:
+            #     print("using median")
+            #     refocused_im = np.median(warped_im, axis=3)
+
+            # display the image to the user in a new window
+            window = Toplevel(root)
+            window.title('Refocused Image')
+            img = ImageTk.PhotoImage(Image.fromarray(BGR2RGB(refocused_im)))
+            self.canvas = tk.Canvas(window, width=img.width(), height=img.height(),
+                                    borderwidth=0, highlightthickness=0)
+            self.canvas.pack(expand=True)
+            self.canvas.create_image(0, 0, image=img, anchor=tk.NW)
+            self.canvas.img = img
+            label_text = f'Current refocused image:\ndx={self.dx}\ndy={self.dy}'  # todo: add rotation
+            self.current_im_label = self.add_label(text=label_text, place=[320, 220], borderwidth=2)
+
+        except Exception as e:
+            raise e
+            display_error(root, 'Error occurred while refocusing the image. Error: ' + e.args[0])
+
+    def refocus_im(self):
+        if self.dx == 0 and self.dy == 0:
+            self.refocused_im = copy.deepcopy(self.warped_im)
+        else:
+            for i in range(self.num_frames):
+                self.refocused_im[:, :, :, i] = create_translated_im(self.warped_im[:, :, :, i], dx=self.dx * (i + 1),
+                                                                     dy=self.dy * (i + 1))
+
+    def update_focus_parameters(self):
+        """
+        Checks if the user inserted value in the motion entries, and updates the relevant parameters
+        """
         if self.x_entry.get():
-            self.update_focus_command('x', amount=float(self.x_entry.get()))
+            self.dx = float(self.x_entry.get())
             self.x_entry.delete(0, 'end')
         if self.y_entry.get():
-            self.update_focus_command('y', amount=float(self.y_entry.get()))
+            self.dy = float(self.y_entry.get())
             self.y_entry.delete(0, 'end')
         if self.alpha_entry.get():
             self.update_focus_command('alpha', amount=float(self.alpha_entry.get()))
             self.alpha_entry.delete(0, 'end')
 
-        print(self.accum_h[:, :, 0])
+    def align_images(self):
+        """
+        Aligns all images in the sequence with respect to the reference frame
+        """
+        self.warped_im = np.zeros(self.im_shape + (self.num_frames,))
 
-        # warp the images according to accum_h:
-        shape = self.frames[0].shape + (self.num_frames,)
-        warped_im = np.zeros(shape)
-        for i in range(self.num_frames):
-            warped_im[:, :, :, i] = cv2.warpPerspective(self.frames[i], np.linalg.inv(self.accum_h[:, :, i]),
-                                                        (self.frames[0].shape[1], self.frames[0].shape[0]))
+        # compute the accumulate homographies of each frame with respect to the reference frame
+        accum_homographies = accumulate_homographies(self.homographies, self.ref_frame)
 
-        if self.med_mean_var.get() == 2:
-            print("using mean")
-            refocused_im = np.mean(warped_im, axis=3)
-        else:
-            print("using median")
-            refocused_im = np.median(warped_im, axis=3)
-        refocused_im = (refocused_im - np.min(refocused_im)) / (np.max(refocused_im) - np.min(refocused_im))
-
-        cv2.imshow('refocused_im', refocused_im)
-        cv2.waitKey(0)
+        # warp images according to homographies:
+        for i in range(self.num_frames):  # todo: maybe -1
+            h_inv = np.linalg.inv(accum_homographies[:, :, i])
+            self.warped_im[:, :, :, i] = cv2.warpPerspective(self.frames[i], h_inv,
+                                                             (self.im_shape[1], self.im_shape[0]))
+        self.refocused_im = copy.deepcopy(self.warped_im)
 
     def load_dir(self):
         """
         Loads the dir the user selected and displays the number of frames in it and the size of an image
         """
         try:
-            self.load_label.destroy()
-        except AttributeError:
-            pass
-        self.reset_fields()
-        # todo: add try and accept for cases where there are other things in the folder than images
-        self.directory = filedialog.askdirectory(initialdir="/", title="select dir") + '/'
-        self.file_name = self.directory.split('/')[-2]
-        print(self.directory)
+            try:
+                self.load_label.destroy()
+            except AttributeError:
+                pass
+            self.reset_fields()
+            self.directory = filedialog.askdirectory(initialdir="/", title="select dir") + '/'
+            self.file_name = self.directory.split('/')[-2]
+            print(self.directory)
 
-        # load frames:
-        self.images_path = sorted_alphanumeric(os.listdir(self.directory))
-        for im_path in self.images_path:
-            self.frames.append(cv2.imread(self.directory + im_path))
+            # load frames:
+            self.frames = load_images(self.directory)
+            if self.frames:
+                self.num_frames = len(self.frames)
+                self.im_shape = self.frames[0].shape
+                self.load_label = self.add_label(text=f'Folder Name: {self.file_name}\n'
+                                                      f'Number of Frames: {len(self.frames)}\n'
+                                                      f'Frame size: {self.im_shape[0]}x{self.im_shape[1]}',
+                                                 place=[200, 10])
+                self.ref_frame = self.num_frames // 2 - 1  # todo: check about ref frame and if I allow it
 
-        if self.frames:
-            self.num_frames = len(self.frames)
-            self.load_label = self.add_label(text=f'Folder Name: {self.file_name}\n'
-                                                  f'Number of Frames: {len(self.frames)}\n'
-                                                  f'Frame size: {self.frames[0].shape[0]}x{self.frames[0].shape[1]}',
-                                             place=[200, 10])
-            self.ref_frame = self.num_frames // 2 - 1
-        else:
-            print("error")
-            # todo: display to the user an error message that the folder is empty
+        except AttributeError as e:
+            display_error(root, 'Error while loading the folder. Make sure you selected the correct folder and that it '
+                                'contains images')
+        except Exception as e:
+            display_error(root, 'Error occurred while loading folder. Error: ' + e.args[0])
 
     def compute_motion(self):
         """
@@ -196,15 +273,25 @@ class GUI(tk.Frame):
         '/Motion/<sequence_name>.csv'. If the file already exists, it loads this file instead of recomputing the motion.
         """
         try:
-            self.homographies = np.genfromtxt('Motion/' + self.file_name + '.csv', delimiter=',') \
+            if not self.directory:
+                raise UserError('Please load a folder first!')
+            self.homographies = np.genfromtxt('../Motion/' + self.file_name + '.csv', delimiter=',') \
                 .reshape((3, 3, self.num_frames - 1))
-        except Exception as e:
+            # self.validate_motion_direction()  # todo: check if this function helps here
+        except UserError as e:  # catch the error if the user didn't load a folder
+            display_error(root, e.message)
+
+        except IOError:  # no motion file exists - catch the IOError, calculate and save the motion
+            # self.validate_motion_direction() # todo: check if this function helps here
             self.homographies = np.zeros((3, 3, self.num_frames - 1))
             for i in range(self.num_frames - 1):
                 self.homographies[:, :, i] = Homography(self.frames[i], self.frames[i + 1],
                                                         translation_only=self.trans_only_var.get())
             csv_data = self.homographies.reshape((9, self.num_frames - 1))
-            np.savetxt('Motion/' + self.file_name + '.csv', csv_data, delimiter=',')
+            np.savetxt('../Motion/' + self.file_name + '.csv', csv_data, delimiter=',')
+
+        except Exception as e:
+            display_error(root, 'Error occurred while computing motion. Error: ' + e.args[0])
 
     def select_area(self):
         """
@@ -262,11 +349,14 @@ class GUI(tk.Frame):
 
         self.selection_area = [0, 0, 0, 0]
 
-    def add_label(self, text: str, place: list):
+    def add_label(self, text: str, place: list, borderwidth: int = 0):
         """
         Adds a label with the given text in the given location to the GUI
         """
-        label = tk.Label(self, text=text)
+        if borderwidth:
+            label = tk.Label(self, text=text, borderwidth=borderwidth, relief='ridge')
+        else:
+            label = tk.Label(self, text=text)
         label.pack()
         label.place(x=place[0], y=place[1])
         return label

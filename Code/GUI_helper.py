@@ -22,7 +22,7 @@ def load_images(dir):
     return frames
 
 
-def compute_homographies(frames, translation_only):
+def compute_homographies(frames, translation_only=False):
     """
     Computes the homography between every two consecutive frames in the given list of frames
     :param frames: a list with frames for which the homographies should be calculated
@@ -213,6 +213,69 @@ def calculate_added_motion(start_col, end_col, num_frames):
     added_motion = np.cumsum(added_motion)
     added_motion[-1] = end_col
     return added_motion
+
+
+# def translate_im(im, translation, axis='x'):
+#     """
+#     Translates the given image by the given translation along the given axis
+#     :param im: the image that should be translated
+#     :param translation: the number of pixels that the image should be translated by
+#     :param axis: the axis along which to translate the image - x or y axis
+#     :return: the translated image
+#     """
+#     translated_im = np.zeros(im.shape)
+#     if axis == 'x':
+#         if translation > 0:
+#             translated_im[:, translation:, :] = im[:, :-translation, :]
+#         elif translation < 0:
+#             translated_im[:, :translation, :] = im[:, -translation:, :]
+#         else:
+#             return im
+#     if axis == 'y':
+#         if translation > 0:
+#             translated_im[translation:, :, :] = im[:-translation, :, :]
+#         elif translation < 0:
+#             translated_im[:, :translation, :] = im[-translation:, :, :]
+#         else:
+#             return im
+#     return translated_im
+
+def translate_im(im, dx=0, dy=0):
+    """
+    Translates the given image by the given dx and dy
+    :param im: the image that should be translated
+    :param dx: the number of pixels that the image should be translated by in the x direction
+    :param dy: the number of pixels that the image should be translated by in the y direction
+    :return: the translated image
+    """
+    if dx == 0 and dy == 0:
+        return im
+    translated_im = np.zeros(im.shape)
+    if dx > 0:
+        translated_im[:, dx:, :] = im[:, :-dx, :]
+    if dx < 0:
+        translated_im[:, :dx, :] = im[:, -dx:, :]
+    if dy > 0:
+        translated_im[dy:, :, :] = im[:-dy, :, :]
+    if dy < 0:
+        translated_im[:dy, :, :] = im[-dy:, :, :]
+    return translated_im
+
+
+def create_translated_im(im, dx=0, dy=0):
+    """
+    Translates the given image by the given dx and dy
+    :param im: the image that should be translated
+    :param dx: the number of pixels that the image should be translated by in the x direction
+    :param dy: the number of pixels that the image should be translated by in the y direction
+    :return: the translated image
+    """
+    if np.floor(dx) == dx and np.floor(dy) == dy:
+        return translate_im(im, int(dx), int(dy))
+    translated_im = np.zeros(im.shape + (2,))
+    translated_im[:, :, :, 0] = translate_im(im, int(np.floor(dx)), int(np.floor(dy)))
+    translated_im[:, :, :, 1] = translate_im(im, int(np.ceil(dx)), int(np.ceil(dy)))
+    return np.mean(translated_im, axis=3)
 
 
 class MousePositionTracker(tk.Frame):

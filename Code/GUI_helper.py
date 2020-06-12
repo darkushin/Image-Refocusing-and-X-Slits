@@ -4,7 +4,6 @@ from tkinter import *
 import tkinter as tk
 from PIL import Image, ImageTk
 import os
-import matplotlib.pyplot as plt
 
 
 def load_images(dir):
@@ -70,10 +69,7 @@ def Homography(img1, img2, selection_area=None, translation_only=False):
     src_pts = np.float32([kpt1[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
     dst_pts = np.float32([kpt2[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
 
-    if selection_area:
-        M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-    else:
-        M, inliers = ransac_homography(src_pts[:, 0, :], dst_pts[:, 0, :], 100, 6, translation_only)
+    M, inliers = ransac_homography(src_pts[:, 0, :], dst_pts[:, 0, :], 100, 6, translation_only)
 
     return M
 
@@ -81,8 +77,8 @@ def Homography(img1, img2, selection_area=None, translation_only=False):
 def ransac_homography(points1, points2, num_iter, inlier_tol, translation_only=False):
     """
     Computes homography between two sets of points using RANSAC.
-    :param pos1: An array with shape (N,2) containing N rows of [x,y] coordinates of matched points in image 1.
-    :param pos2: An array with shape (N,2) containing N rows of [x,y] coordinates of matched points in image 2.
+    :param points1: An array with shape (N,2) containing N rows of [x,y] coordinates of matched points in image 1.
+    :param points2: An array with shape (N,2) containing N rows of [x,y] coordinates of matched points in image 2.
     :param num_iter: Number of RANSAC iterations to perform.
     :param inlier_tol: inlier tolerance threshold.
     :param translation_only: see estimate rigid transform
@@ -215,31 +211,6 @@ def calculate_added_motion(start_col, end_col, num_frames):
     return added_motion
 
 
-# def translate_im(im, translation, axis='x'):
-#     """
-#     Translates the given image by the given translation along the given axis
-#     :param im: the image that should be translated
-#     :param translation: the number of pixels that the image should be translated by
-#     :param axis: the axis along which to translate the image - x or y axis
-#     :return: the translated image
-#     """
-#     translated_im = np.zeros(im.shape)
-#     if axis == 'x':
-#         if translation > 0:
-#             translated_im[:, translation:, :] = im[:, :-translation, :]
-#         elif translation < 0:
-#             translated_im[:, :translation, :] = im[:, -translation:, :]
-#         else:
-#             return im
-#     if axis == 'y':
-#         if translation > 0:
-#             translated_im[translation:, :, :] = im[:-translation, :, :]
-#         elif translation < 0:
-#             translated_im[:, :translation, :] = im[-translation:, :, :]
-#         else:
-#             return im
-#     return translated_im
-
 def translate_im(im, dx=0, dy=0):
     """
     Translates the given image by the given dx and dy
@@ -349,6 +320,7 @@ class SelectionObject:
         # Options for areas outside rectanglar selection.
         select_opts1 = self.select_opts1.copy()
         select_opts1.update({'state': tk.HIDDEN})  # Hide initially.
+
         # Separate options for area inside rectanglar selection.
         select_opts2 = dict(dash=(2, 2), fill='', outline='white', state=tk.HIDDEN)
 
@@ -397,9 +369,10 @@ class Application(tk.Frame):
     # Default selection object options.
     SELECT_OPTS = dict(dash=(5, 5), stipple='gray25', outline='')  # fill="white"
 
-    def __init__(self, root, parent, path, *args, **kwargs):
+    def __init__(self, root, parent, ref_img, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
-        img = ImageTk.PhotoImage(Image.open(path))
+        # img = ImageTk.PhotoImage(Image.open(path))
+        img = ImageTk.PhotoImage(Image.fromarray(BGR2RGB(ref_img)))
         self.canvas = tk.Canvas(parent, width=img.width(), height=img.height(),
                                 borderwidth=0, highlightthickness=0)
         self.canvas.pack(expand=True)
@@ -434,7 +407,6 @@ class UserError(Error):
     def __init__(self, err_message, orig_err_msg=None):
         self.message = err_message
         self.orig_err_msg = orig_err_msg
-
 
 
 def display_error(root, err_msg, original_err_msg=None):

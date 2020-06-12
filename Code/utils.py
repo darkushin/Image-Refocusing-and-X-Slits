@@ -1,7 +1,7 @@
 from Code.GUI_helper import *
 
 
-# This file contains useful functions for using the program and visualizing the results, such as breaking a new input
+# This file contains useful functions for using the programs and visualizing the results, such as breaking a new input
 # sequence into frames, creating a new video from the resulting frames and creating multiple panoramas.
 
 
@@ -58,16 +58,17 @@ def frames2video(dir):
 
 def reverse_video(dir):
     """
-    Reverses the order of the frames in the sequence.
+    Creates a new folder named '<sequence>-reversed' and saves in it all the images in the sequence, in reversed order.
     """
     sequence = dir.split('/')[-1]
+    os.system(f'mkdir ../Data/{sequence}-reversed')
     images_path = sorted_alphanumeric(os.listdir(dir))
     i = len(images_path)
     for im_path in images_path:
         if im_path == '.DS_Store':
             continue
         im = BGR2RGB(cv2.imread(dir + '/' + im_path))
-        plt.imsave(f'../Data/{sequence}/reversed-{i}.jpg', im)
+        plt.imsave(f'../Data/{sequence}-reversed/reversed-{i}.jpg', im)
         i -= 1
 
 
@@ -290,8 +291,8 @@ def create_left_right_panoramas(dir):
                    BGR2RGB(panorama_im))
 
 
-create_left_right_panoramas('../Data/train-in-snow')
+# create_left_right_panoramas('../Data/train-in-snow')
 # produce_panorama_sequence('../Data/Nutella', 0, 307, 0, 639, 'frames')
 # frames2video('../Data/train-in-snow-reversed')
-# reverse_video('../Data/train-in-snow')
+# reverse_video('../Data/Banana')
 # video2frames('Nutella')

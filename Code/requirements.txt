@@ -1,0 +1,7 @@
+copy
+tkinter
+matplotlib
+cv2
+numpy
+PIL
+os

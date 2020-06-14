@@ -82,8 +82,8 @@ class GUI(tk.Frame):
                 self.load_label.destroy()
             except AttributeError:
                 pass
-            self.directory = filedialog.askdirectory(initialdir="/", title="select dir") + '/'
-            self.file_name = self.directory.split('/')[-2]
+            self.directory = filedialog.askdirectory(initialdir=os.path.sep, title="select dir") + os.path.sep
+            self.file_name = self.directory.split(os.path.sep)[-2]
 
             # load frames:
             self.frames = load_images(self.directory)
@@ -109,20 +109,20 @@ class GUI(tk.Frame):
             if not self.directory:
                 raise UserError('Please load a folder first!')
 
-            self.homographies = np.genfromtxt('../Motion/' + self.file_name + '.csv', delimiter=',') \
-                .reshape((3, 3, self.num_frames - 1))
+            self.homographies = np.genfromtxt(os.path.join("..", "Motion") + os.sep + self.file_name + '.csv',
+                                              delimiter=',').reshape((3, 3, self.num_frames - 1))
             self.validate_motion_direction()
 
         except UserError as e:  # catch the error if the user didn't load a folder
             display_error(root, e.message)
 
-        except IOError:  # no motion file exists - catch the IOError, calculate and save the motion
+        except IOError as e:  # no motion file exists - catch the IOError, calculate and save the motion
             self.validate_motion_direction()
             self.homographies = np.zeros((3, 3, self.num_frames - 1))
             for i in range(self.num_frames - 1):
                 self.homographies[:, :, i] = Homography(self.frames[i], self.frames[i + 1], translation_only=True)
             csv_data = self.homographies.reshape((9, self.num_frames - 1))
-            np.savetxt('../Motion/' + self.file_name + '.csv', csv_data, delimiter=',')
+            np.savetxt(os.path.join("..", "Motion") + os.sep + self.file_name + '.csv', csv_data, delimiter=',')
 
         except Exception as e:
             display_error(root, 'Error occurred while computing motion. Error: ' + e.args[0])

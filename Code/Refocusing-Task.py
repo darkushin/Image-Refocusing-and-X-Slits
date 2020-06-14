@@ -226,8 +226,8 @@ class GUI(tk.Frame):
             except AttributeError:
                 pass
             self.reset_fields()
-            self.directory = filedialog.askdirectory(initialdir="/", title="select dir") + '/'
-            self.file_name = self.directory.split('/')[-2]
+            self.directory = filedialog.askdirectory(initialdir=os.path.sep, title="select dir") + os.path.sep
+            self.file_name = self.directory.split(os.path.sep)[-2]
 
             # load frames:
             self.frames = load_images(self.directory)
@@ -255,8 +255,8 @@ class GUI(tk.Frame):
         try:
             if not self.directory:
                 raise UserError('Please load a folder first!')
-            self.homographies = np.genfromtxt('../Motion/' + self.file_name + '.csv', delimiter=',') \
-                .reshape((3, 3, self.num_frames - 1))
+            self.homographies = np.genfromtxt(os.path.join("..", "Motion") + os.sep + self.file_name + '.csv',
+                                              delimiter=',').reshape((3, 3, self.num_frames - 1))
         except UserError as e:  # catch the error if the user didn't load a folder
             display_error(root, e.message)
 
@@ -266,7 +266,7 @@ class GUI(tk.Frame):
                 self.homographies[:, :, i] = Homography(self.frames[i], self.frames[i + 1],
                                                         translation_only=self.trans_only_var.get())
             csv_data = self.homographies.reshape((9, self.num_frames - 1))
-            np.savetxt('../Motion/' + self.file_name + '.csv', csv_data, delimiter=',')
+            np.savetxt(os.path.join("..", "Motion") + os.sep + self.file_name + '.csv', csv_data, delimiter=',')
 
         except Exception as e:
             display_error(root, 'Error occurred while computing motion. Error: ' + e.args[0])
@@ -364,7 +364,7 @@ class GUI(tk.Frame):
 
 
 if __name__ == '__main__':
-    os.system(f'mkdir ../Motion')
+    os.system(f'mkdir {os.path.join("..", "Motion")}')
 
     WIDTH, HEIGHT = 500, 350
     BACKGROUND = 'grey'

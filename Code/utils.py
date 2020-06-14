@@ -1,4 +1,5 @@
 from Code.GUI_helper import *
+import matplotlib.pyplot as plt
 
 
 # This file contains useful functions for using the programs and visualizing the results, such as breaking a new input
@@ -97,11 +98,13 @@ def create_panorama_small_start(start_frame, end_frame, start_column, end_column
 
     if start_column == end_column:
         for i in range(num_frames - 1):
+            print(i)
             motion = int(round(homographies[0, 2, start_frame + i]))
             if start_column + motion < im_shape[1]:
                 panorama_im[:, panorama_col: panorama_col + motion, :] = \
                     frames[start_frame + i][:, start_column: start_column + motion, :]
             else:
+                print('in else')
                 panorama_im[:, panorama_col: panorama_col + motion, :] = \
                     frames[start_frame + i][:, im_shape[1] - motion:, :]
             panorama_col += motion
@@ -292,7 +295,7 @@ def create_left_right_panoramas(dir):
 
 
 # create_left_right_panoramas('../Data/train-in-snow')
-# produce_panorama_sequence('../Data/Nutella', 0, 307, 0, 639, 'frames')
+# produce_panorama_sequence('../Data/apples', 0, 212, 0, 0)
 # frames2video('../Data/train-in-snow-reversed')
 # reverse_video('../Data/Banana')
 # video2frames('Nutella')

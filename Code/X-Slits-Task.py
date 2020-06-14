@@ -1,5 +1,4 @@
 from tkinter import filedialog
-from os import listdir
 from Code.GUI_helper import *
 
 dirname = os.path.dirname(__file__)
@@ -18,7 +17,7 @@ class GUI(tk.Frame):
         self.initial_start_frame = 0
         self.initial_end_frame = 0
         self.start_column = 0
-        self.end_column = 1
+        self.end_column = 0
         self.rotate_angle = 0
         self.im_shape = None
         self.start_frame_entry = None
@@ -34,6 +33,7 @@ class GUI(tk.Frame):
         self.move_slice()
         self.current_slit_label = None
         self.rotate_angle_label = None
+        self.load_label = None
         self.add_button(text='Show', place=[200, 360], command=self.create_slit)
 
     def select_folder_button(self):
@@ -84,7 +84,6 @@ class GUI(tk.Frame):
                 pass
             self.directory = filedialog.askdirectory(initialdir="/", title="select dir") + '/'
             self.file_name = self.directory.split('/')[-2]
-            print(self.directory)
 
             # load frames:
             self.frames = load_images(self.directory)
@@ -94,8 +93,8 @@ class GUI(tk.Frame):
                 self.load_label = self.add_label(text=f'Folder Name: {self.file_name}\n'
                                                       f'Number of Frames: {len(self.frames)}\n'
                                                       f'Frame size: {self.im_shape[0]}x{self.im_shape[1]}',
-                                                 place=[200, 10])
-        except AttributeError as e:
+                                                 place=[200, 10], borderwidth=2)
+        except AttributeError:
             display_error(root, 'Error while loading the folder. Make sure you selected the correct folder and that it '
                           'contains images')
         except Exception as e:
@@ -117,8 +116,7 @@ class GUI(tk.Frame):
         except UserError as e:  # catch the error if the user didn't load a folder
             display_error(root, e.message)
 
-        except IOError:  # if no motion file for the loaded folder was previously created, catch the IOError,
-            # calculate and save the motion
+        except IOError:  # no motion file exists - catch the IOError, calculate and save the motion
             self.validate_motion_direction()
             self.homographies = np.zeros((3, 3, self.num_frames - 1))
             for i in range(self.num_frames - 1):
@@ -152,7 +150,13 @@ class GUI(tk.Frame):
                 self.current_slit_label.destroy()
             except AttributeError:
                 pass
-            panorama_im = self.create_panorama()
+            try:
+                panorama_im = self.create_panorama()
+                if panorama_im.shape[1] == 0:
+                    raise UserError('Could not create panorama image using the defined slice. Please select different '
+                                    'end points.')
+            except Exception as e:
+                raise e
             window = Toplevel(root)
             window.title('Panorama Image')
             img = ImageTk.PhotoImage(Image.fromarray(BGR2RGB(panorama_im)))
@@ -163,7 +167,7 @@ class GUI(tk.Frame):
             canvas.img = img
             label_text = f'Current slit - frames: {self.start_frame}-{self.end_frame}, columns: {self.start_column}-' \
                          f'{self.end_column}'
-            self.current_slit_label = self.add_label(text=label_text, place=[100, 330])
+            self.current_slit_label = self.add_label(text=label_text, place=[100, 330], borderwidth=2)
         except UserError as e:
             display_error(root, e.message, e.orig_err_msg)
         except Exception as e:
@@ -177,15 +181,15 @@ class GUI(tk.Frame):
         self.update_slit_boundaries()
         if not self.check_boundaries():
             raise UserError(f'Please define valid starting and ending frames and columns!\n'
-                            f'Frames range 0-{self.num_frames-1}, Columns range 0-{self.im_shape[1]}')
+                            f'Frames range 0-{self.num_frames-1}, Columns range 0-{self.im_shape[1]-1}')
         try:
             if self.start_column <= self.end_column:
                 return self.create_panorama_small_start()
             else:
                 return self.create_panorama_big_start()
         except Exception as e:
-            raise UserError(f'Could not create panorama image using the defined slice. Please select different end '
-                            f'points.', e.args[0])
+            raise UserError('Could not create panorama image using the defined slice. Please select different end '
+                            'points.', e.args[0])
 
     def create_panorama_small_start(self):
         """
@@ -325,7 +329,7 @@ class GUI(tk.Frame):
         Updates the boundaries of the slit according to the rotation angle defined by the user
         """
         self.rotate_angle_label = self.add_label(text=f'angle: {self.rotate_angle}', place=[390, 300])
-        if 0 <= abs(self.rotate_angle) <= 45:
+        if 0 <= self.rotate_angle <= 45:
             change = (self.rotate_angle * self.im_shape[1]) // 90
             self.start_column = (self.im_shape[1] // 2) - change
             self.end_column = (self.im_shape[1] // 2) + change
@@ -338,6 +342,12 @@ class GUI(tk.Frame):
             change = (num_frames * (self.rotate_angle - 45)) // 90
             self.start_frame = self.initial_start_frame + change
             self.end_frame = self.initial_end_frame - change
+        elif -45 <= self.rotate_angle < 0:
+            change = (self.rotate_angle * self.im_shape[1]) // 90 + 1
+            self.start_column = self.im_shape[1] // 2 - change
+            self.end_column = (self.im_shape[1] - 1) // 2 + change
+            self.start_frame = self.initial_start_frame
+            self.end_frame = self.initial_end_frame
         elif -90 <= self.rotate_angle < -45:
             num_frames = self.initial_end_frame - self.initial_start_frame
             change = (num_frames * (abs(self.rotate_angle) - 45)) // 90
@@ -348,11 +358,11 @@ class GUI(tk.Frame):
         else:
             raise UserError("Please define a valid rotation angle between -90 and 90")
 
-    def add_label(self, text: str, place: list):
+    def add_label(self, text: str, place: list, borderwidth: int = 0):
         """
         Adds a label with the given text in the given location to the GUI
         """
-        label = tk.Label(self, text=text)
+        label = tk.Label(self, text=text, borderwidth=borderwidth, relief='ridge')
         label.pack()
         label.place(x=place[0], y=place[1])
         return label
@@ -376,6 +386,8 @@ class GUI(tk.Frame):
 
 
 if __name__ == '__main__':
+    os.system(f'mkdir {os.path.join("..", "Motion")}')
+
     WIDTH, HEIGHT = 500, 400
     BACKGROUND = 'grey'
     TITLE = 'X-Slit GUI'

@@ -3,17 +3,11 @@ from tkinter import filedialog
 from Code.GUI_helper import *
 
 
-# TODO's:
-#  1. Allow the user to select specific frame range (important in the case of apples)
-#  3. Display to the user different error messages
-#  4. Check that right to left motion works!
-#  5. Create all the repos that are necessary for the program when running for the first time (Motion/Results etc.)
-
-
 class GUI(tk.Frame):
     """
     The main class of the program. This class is responsible for all the GUI logic and execution.
     """
+
     def __init__(self, parent, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.directory = ''
@@ -174,7 +168,7 @@ class GUI(tk.Frame):
             window.title('Refocused Image')
             img = ImageTk.PhotoImage(Image.fromarray(BGR2RGB(refocused_im)))
             canvas = tk.Canvas(window, width=img.width(), height=img.height(),
-                                    borderwidth=0, highlightthickness=0)
+                               borderwidth=0, highlightthickness=0)
             canvas.pack(expand=True)
             canvas.create_image(0, 0, image=img, anchor=tk.NW)
             canvas.img = img
@@ -243,7 +237,8 @@ class GUI(tk.Frame):
                 self.load_label = self.add_label(text=f'Folder Name: {self.file_name}\n'
                                                       f'Number of Frames: {len(self.frames)}\n'
                                                       f'Frame size: {self.im_shape[0]}x{self.im_shape[1]}',
-                                                 place=[200, 10])
+                                                 place=[200, 10],
+                                                 borderwidth=2)
                 self.ref_frame = self.num_frames // 2 - 1
 
         except AttributeError as e:
@@ -287,8 +282,6 @@ class GUI(tk.Frame):
         window.title(TITLE)
         window.configure(background=BACKGROUND)
 
-        # todo: change this if I allow to choose the reference frame
-        print(len(self.frames))
         select_window = Application(root, window, self.frames[self.ref_frame], background=BACKGROUND)
         select_window.pack(side=tk.TOP, fill=tk.BOTH, expand=tk.TRUE)
         done_button = tk.Button(select_window, text='Done', fg='black',
@@ -334,11 +327,11 @@ class GUI(tk.Frame):
             window.title('Refocused Image')
             img = ImageTk.PhotoImage(Image.fromarray(BGR2RGB(refocused_im)))
             canvas = tk.Canvas(window, width=img.width(), height=img.height(),
-                                    borderwidth=0, highlightthickness=0)
+                               borderwidth=0, highlightthickness=0)
             canvas.pack(expand=True)
             canvas.create_image(0, 0, image=img, anchor=tk.NW)
             canvas.img = img
-        except ValueError:
+        except:
             display_error(root, 'Not enough feature points in the selected area. Please select a larger area')
         self.selection_area = [0, 0, 0, 0]
 
@@ -346,13 +339,11 @@ class GUI(tk.Frame):
         """
         Adds a label with the given text in the given location to the GUI
         """
-        if borderwidth:
-            label = tk.Label(self, text=text, borderwidth=borderwidth, relief='ridge')
-        else:
-            label = tk.Label(self, text=text)
+        label = tk.Label(self, text=text, borderwidth=borderwidth, relief='ridge')
         label.pack()
         label.place(x=place[0], y=place[1])
         return label
+
 
     def add_button(self, text: str, place: list, fg: str = 'black', command=None):
         """

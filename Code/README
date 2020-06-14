@@ -1,0 +1,98 @@
+This project contains two separate programs:
+1. Refocus GUI - this GUI allows the user to refocus on different objects in the scene, according to their depth in the
+   real world. For best results, use a sequence with a small motion between every two consecutive frames.
+2. X-Slits GUI - this GUI allows the user to create different slices in the space-time volume. The user can create full
+   sized panoramas from different view-points, such as right-eye and left-eye view of the scene, a full view panorama
+   from the left part of the first frame to the right part of the last (or vice versa if the motion is from right to left).
+   Moreover, the GUI allows the user to create an affect of zoom-in on different parts of the sequence by changing the
+   viewing angle in the space-time volume.
+
+Note: Both GUI receive a video sequence broken down into frames as input.
+
+
+###################
+   Installation
+###################
+In order to use the GUIs extract the zip file in an empty folder and run either Refocusing-Task.py or X-Slits-Task.py
+for running the Refocus GUI and X-Slits GUI respectively. The program should create all the repositories and dependencies
+required for it to run.
+
+
+###################
+       Usage
+###################
+
+1. Refocus GUI:
+   a. Run the Refocusing-Task.py program.
+   b. Press the 'Select Folder' button. In the new opened window, navigate to the folder containing the desired sequence.
+   c. Press the 'Compute Motion' button in order to compute the motion between every two consecutive frames in the
+      sequence. If the sequence is a pure translation sequence, it is recommended to check the 'Translation-Only'
+      checkbox BEFORE pressing the 'Compute Motion' button for better results.
+   d. Focus on different objects in the pictured scene. This can be done in two ways:
+      i. 'Left-Right' and 'Up-Down' buttons and entries. Pressing once every '+' and '-' button will shift the frames
+         linearly by +0.5 and -0.5 pixels respectively. Entering a value to the entries under these buttons will shift
+         the images linearly by the entered value. After defining the desired changes, press the 'Show' button in the
+         bottom to display the new refocused image, calculated according to the specified motion. After the image is
+         displayed, a new label will appear in the GUI, indicating the motion that was used to calculate the output image.
+     ii. Pressing the 'Select Area' button. Pressing this button will open a new window with the middle image of the
+         sequence as reference. Select a desired object to focus on in the image using the mouse and press the 'Done'
+         button. Pressing this button will close the reference frame and create a new output image where the focus is
+         on the selected area.
+   e. Using Mean or Median: before pressing the ‘Show’ button the user is given the option to choose whether to compute
+      the refocused image using the median or the mean of all the aligned and translated images. The default option is
+      using the mean, but for the treasure sequence (see Results section) I found the median to produce better results.
+
+   Notes:
+     a. For using a different sequence go back to step a.
+     b. The motion between every two consecutive frames is calculated only for the first time the sequence is used. If
+        the sequence is re-used then the motion is loaded from a .csv file saving this information. If recomputing the
+        motion is desired, then the motion file of the sequence should be deleted first. The motion file of the sequence
+        is has the same name as the sequence folder and should be located in the Motion folder.
+     c. Direct area selection – as explained before, pressing the 'Select Area' button will open a new window with the
+        reference frame. In this window, do a left click with the mouse in the upper-left corner of the area you wish to
+        focus on and drag the mouse (while holding it clicked) to the lower-right corner of the desired area. This will
+        draw a doted rectangle on the image, indicating the area selected by the user. Changing the selected area can be
+        done by the same logic again. After the user is satisfied with the selected region, the ‘Done’ button should be
+        pressed. Pressing this button will close the current window and open a new window displaying the refocused image,
+        where the focus is on the area selected by the user.
+
+
+2. X-Slits GUI:
+   a. Run the X-Slits-Task.py program.
+   b. Press the 'Select Folder' button. In the new opened window, navigate to the folder containing the desired sequence.
+   c. Press the 'Compute Motion' button in order to compute the motion between every two consecutive frames in the sequence.
+   d. Define the initial slice in the Space-Time volume by filling the four available entries representing the start frame,
+      end frame, start column and end column, by this order. Each number should be entered in the relevant entry. The
+      possible values are from 0 to NUM_FRAMES-1 for the frame entries, and 0 to IMAGE_WIDTH-1 for the column entries.
+      For your convenience, after selecting a sequence, the number of frames and the dimensions of an image in the sequence
+      are presented in the upper-right corner of the GUI. The image shape is in the format of HEIGHT x WIDTH.
+   e. After defining the endpoints, a panorama image can be created by pressing the ‘Show’ button in the bottom of the GUI.
+      Pressing this window will open a new image with the resulting panorama image that was computed according to the
+      endpoints defined by the user. For your convenience, after pressing this button a new label will appear above it,
+      indicating the frames and columns ranges that were used to create the displayed panorama. The endpoints entries are
+      being cleared to avoid confusion.
+   f. Create new panoramas: after defining the initial endpoints of the panorama, new panoramas from different viewing
+      points can be created in one of the following ways:
+      i. Directly changing the slice endpoints by inserting values as explain in step 4.
+     ii. Backward-Forward entry: this entry allows the user to insert a number to move the frames that are being moved
+         forward/backward. For example, if the previous panorama was created using frames i and j as the start and end
+         frames respectively, then filling the number n in this entry will create a panorama image using frames i+n to j+n
+         and the same columns as defined before. In case i+n < 0 or j+n > NUM_FRAMES-1 an error message is displayed to
+         the user (see Notes).
+    iii. Left-Right entry: this entry allows the user to shift the start and end columns to the left/right. For example,
+         if the previous panorama was created using columns k and l as the start and end columns respectively, then
+         inserting the number n in this entry will create a panorama using the same frames as before but columns ranging
+         from k+n to l+n. As in the previous case, if k+n < 0 or l+n>IM_WIDTH-1 an error message is displayed to the user
+         (see Notes).
+     iv. Zoom-in/out entry: this entry allows the user to insert an angle (-90 to 90) in which the current slice of the
+         Space-Time volume should be rotated. * Inserting the value 0 will create a panorama defined by a vertical slice
+         in the space time volume through the center of every frame.
+         For values between 1 to 45 the used frames are fixed and the columns range changes. Notice that the frames that
+         are used in this case are the frames defined by the user (not necessarily all the frames in the sequence).
+         For values between 46 to 90 the used columns are fixed to be 0 and IM_WIDTH-1 and the frames that are being used
+         are changing. This created a zoom-in affect as when the angle becomes larger the resulting panorama is smaller.
+         Negative values have the exact analogical affect (same computation but defining the start column as bigger than
+         the end column).
+         For your convenience, after inserting a value to this entry, the entered value is displayed below the entry
+         after creating the panorama image.
+
